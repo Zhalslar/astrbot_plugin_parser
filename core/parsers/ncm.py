@@ -13,7 +13,9 @@ from .data import Platform
 class NCMParser(BaseParser):
     """网易云音乐解析器"""
 
-    platform: ClassVar[Platform] = Platform(name="ncm", display_name="网易云")
+    platform: ClassVar[Platform] = Platform(
+        name="ncm", display_name="网易云"
+    )
 
     def __init__(self, config: AstrBotConfig, downloader: Downloader):
         super().__init__(config, downloader)

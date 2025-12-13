@@ -11,13 +11,13 @@ from msgspec import Struct
 from astrbot.core.config.astrbot_config import AstrBotConfig
 
 from ..download import Downloader
-from .base import BaseParser, ParseException, Platform, PlatformEnum, handle
+from .base import BaseParser, ParseException, Platform, handle
 from .data import MediaContent
 
 
 class WeiBoParser(BaseParser):
     # 平台信息
-    platform: ClassVar[Platform] = Platform(name=PlatformEnum.WEIBO, display_name="微博")
+    platform: ClassVar[Platform] = Platform(name="weibo", display_name="微博")
 
     def __init__(self, config: AstrBotConfig, downloader: Downloader):
         super().__init__(config, downloader)

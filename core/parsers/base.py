@@ -281,13 +281,14 @@ class BaseParser:
     def create_file_content(
         self,
         url_or_task: str | Task[Path],
+        name : str | None = None,
     ):
         """创建文件内容"""
         from .data import FileContent
 
         if isinstance(url_or_task, str):
-            url_or_task = self.downloader.download_audio(
-                url_or_task, ext_headers=self.headers
+            url_or_task = self.downloader.download_file(
+                url_or_task, ext_headers=self.headers, file_name=name
             )
 
         return FileContent(url_or_task)

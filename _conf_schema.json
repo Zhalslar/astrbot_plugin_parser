@@ -8,7 +8,7 @@
     "enable_platforms": {
         "description": "启用解析的平台",
         "type": "list",
-        "hint": "",
+        "hint": "打勾表示启用该平台的解析器。请 PR 者写好解析器后务必在这里加上平台名，作为总开关",
         "options": [
             "A站",
             "B站",

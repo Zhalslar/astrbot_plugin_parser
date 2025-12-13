@@ -8,12 +8,12 @@ from astrbot.api import logger
 from astrbot.core.config.astrbot_config import AstrBotConfig
 
 from ..download import Downloader
-from .base import BaseParser, ParseException, Platform, PlatformEnum, handle
+from .base import BaseParser, ParseException, Platform, handle
 
 
 class XiaoHongShuParser(BaseParser):
     # 平台信息
-    platform: ClassVar[Platform] = Platform(name=PlatformEnum.XIAOHONGSHU, display_name="小红书")
+    platform: ClassVar[Platform] = Platform(name="xiaohongshu", display_name="小红书")
 
     def __init__(self, config: AstrBotConfig, downloader: Downloader):
         super().__init__(config, downloader)

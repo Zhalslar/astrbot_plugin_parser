@@ -9,13 +9,13 @@ from astrbot.core.config.astrbot_config import AstrBotConfig
 
 from ..download import Downloader
 from ..exception import ParseException
-from .base import BaseParser, PlatformEnum, handle
+from .base import BaseParser, handle
 from .data import ParseResult, Platform
 
 
 class TwitterParser(BaseParser):
     # 平台信息
-    platform: ClassVar[Platform] = Platform(name=PlatformEnum.TWITTER, display_name="推特")
+    platform: ClassVar[Platform] = Platform(name="twitter", display_name="推特")
 
     def __init__(self, config: AstrBotConfig, downloader: Downloader):
         super().__init__(config, downloader)

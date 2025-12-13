@@ -64,7 +64,7 @@ class VideoInfo(Struct):
 
 
 class Downloader:
-    """下载器，支持youtube-dlp 和 httpx 流式下载"""
+    """下载器，支持youtube-dlp 和 流式下载"""
 
     def __init__(self, config: AstrBotConfig):
         self.config = config
@@ -224,6 +224,19 @@ class Downloader:
         if audio_name is None:
             audio_name = generate_file_name(url, ".mp3")
         return await self.streamd(url, file_name=audio_name, ext_headers=ext_headers)
+
+    @auto_task
+    async def download_file(
+        self,
+        url: str,
+        *,
+        file_name: str | None = None,
+        ext_headers: dict[str, str] | None = None,
+    ) -> Path:
+        """download file by url with stream"""
+        if file_name is None:
+            file_name = generate_file_name(url, ".zip")
+        return await self.streamd(url, file_name=file_name, ext_headers=ext_headers)
 
     @auto_task
     async def download_img(

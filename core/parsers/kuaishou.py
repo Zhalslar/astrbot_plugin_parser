@@ -8,7 +8,7 @@ from msgspec import Struct, field
 from astrbot.core.config.astrbot_config import AstrBotConfig
 
 from ..download import Downloader
-from .base import BaseParser, ParseException, PlatformEnum, handle
+from .base import BaseParser, ParseException, handle
 from .data import Platform
 
 
@@ -16,7 +16,7 @@ class KuaiShouParser(BaseParser):
     """快手解析器"""
 
     # 平台信息
-    platform: ClassVar[Platform] = Platform(name=PlatformEnum.KUAISHOU, display_name="快手")
+    platform: ClassVar[Platform] = Platform(name="kuaishou", display_name="快手")
 
     def __init__(self, config: AstrBotConfig, downloader: Downloader):
         super().__init__(config, downloader)

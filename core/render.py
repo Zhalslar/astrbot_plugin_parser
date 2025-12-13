@@ -272,12 +272,6 @@ class CommonRenderer:
     REPOST_SCALE = 0.88
     """转发缩放比例"""
 
-    # 资源名称
-    _EMOJIS = "emojis"
-    _RESOURCES = "resources"
-    _BUTTON_FILENAME = "media_button.png"
-    _FONT_FILENAME = "HYSongYunLangHeiW-1.ttf"
-
     # 颜色配置
     BG_COLOR: ClassVar[Color] = (255, 255, 255)
     """背景色"""
@@ -292,9 +286,18 @@ class CommonRenderer:
     REPOST_BORDER_COLOR: ClassVar[Color] = (230, 230, 230)
     """转发边框色"""
 
+    # 资源名称
+    _EMOJIS = "emojis"
+    _RESOURCES = "resources"
+    _LOGOS = "logos"
+    _BUTTON_FILENAME = "media_button.png"
+    _FONT_FILENAME = "HYSongYunLangHeiW-1.ttf"
+
     # 路径配置
     RESOURCES_DIR: ClassVar[Path] = Path(__file__).parent / _RESOURCES
     """资源目录"""
+    LOGOS_DIR: ClassVar[Path] = RESOURCES_DIR / _LOGOS
+    """各平台LOGO目录"""
     DEFAULT_FONT_PATH: ClassVar[Path] = RESOURCES_DIR / _FONT_FILENAME
     """默认字体路径"""
     DEFAULT_VIDEO_BUTTON_PATH: ClassVar[Path] = RESOURCES_DIR / _BUTTON_FILENAME
@@ -338,17 +341,15 @@ class CommonRenderer:
         alpha = alpha.point(lambda x: int(x * 0.3))  # 将透明度设置为 30%
         cls.video_button_image.putalpha(alpha)
 
+
     @classmethod
     def _load_platform_logos(cls):
-        """预加载平台 logo"""
-        from .constants import PlatformEnum
-
-        cls.platform_logos: dict[str, PILImage] = {}
-        for platform_name in PlatformEnum:
-            logo_path = cls.RESOURCES_DIR / f"{platform_name}.png"
-            if logo_path.exists():
-                with Image.open(logo_path) as img:
-                    cls.platform_logos[str(platform_name)] = img.convert("RGBA")
+        """预加载 LOGOS_DIR 下全部 png logo"""
+        cls.platform_logos = {
+            p.stem: Image.open(p).convert("RGBA")
+            for p in cls.LOGOS_DIR.rglob("*.png")
+        }
+        logger.debug(f"[logo] 共加载 {len(cls.platform_logos)} 个 logo")
 
     async def text(
         self,

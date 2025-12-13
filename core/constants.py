@@ -1,4 +1,4 @@
-from enum import Enum
+
 from typing import Final
 
 COMMON_HEADER: Final[dict[str, str]] = {
@@ -22,19 +22,3 @@ ANDROID_HEADER: Final[dict[str, str]] = {
     )
 }
 
-
-class PlatformEnum(str, Enum):
-    ACFUN = "acfun"
-    BILIBILI = "bilibili"
-    DOUYIN = "douyin"
-    KUAISHOU = "kuaishou"
-    NGA = "nga"
-    TIKTOK = "tiktok"
-    TWITTER = "twitter"
-    WEIBO = "weibo"
-    XIAOHONGSHU = "xiaohongshu"
-    YOUTUBE = "youtube"
-    NCM = "ncm"
-
-    def __str__(self) -> str:
-        return self.value

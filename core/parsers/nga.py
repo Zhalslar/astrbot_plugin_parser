@@ -12,12 +12,12 @@ from astrbot.core.config.astrbot_config import AstrBotConfig
 
 from ..download import Downloader
 from ..exception import ParseException
-from .base import BaseParser, Platform, PlatformEnum, handle
+from .base import BaseParser, Platform, handle
 
 
 class NGAParser(BaseParser):
     # 平台信息
-    platform: ClassVar[Platform] = Platform(name=PlatformEnum.NGA, display_name="NGA")
+    platform: ClassVar[Platform] = Platform(name="nga", display_name="NGA")
 
     def __init__(self, config: AstrBotConfig, downloader: Downloader):
         super().__init__(config, downloader)

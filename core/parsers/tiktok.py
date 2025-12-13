@@ -4,13 +4,13 @@ from typing import ClassVar
 from astrbot.core.config.astrbot_config import AstrBotConfig
 
 from ..download import Downloader
-from .base import BaseParser, PlatformEnum, handle
+from .base import BaseParser, handle
 from .data import Author, Platform, VideoContent
 
 
 class TikTokParser(BaseParser):
     # 平台信息
-    platform: ClassVar[Platform] = Platform(name=PlatformEnum.TIKTOK, display_name="TikTok")
+    platform: ClassVar[Platform] = Platform(name="tiktok", display_name="TikTok")
 
     def __init__(self, config: AstrBotConfig, downloader: Downloader):
         super().__init__(config, downloader)

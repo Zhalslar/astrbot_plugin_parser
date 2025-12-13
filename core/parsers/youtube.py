@@ -9,12 +9,12 @@ from msgspec import Struct
 from astrbot.core.config.astrbot_config import AstrBotConfig
 
 from ..download import Downloader
-from .base import BaseParser, Platform, PlatformEnum, handle
+from .base import BaseParser, Platform, handle
 
 
 class YouTubeParser(BaseParser):
     # 平台信息
-    platform: ClassVar[Platform] = Platform(name=PlatformEnum.YOUTUBE, display_name="油管")
+    platform: ClassVar[Platform] = Platform(name="youtube", display_name="油管")
 
     def __init__(self, config: AstrBotConfig, downloader: Downloader):
         super().__init__(config, downloader)

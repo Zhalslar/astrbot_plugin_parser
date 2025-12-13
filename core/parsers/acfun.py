@@ -14,12 +14,12 @@ from astrbot.core.config.astrbot_config import AstrBotConfig
 from ..download import Downloader
 from ..exception import DownloadException, ParseException
 from ..utils import safe_unlink
-from .base import BaseParser, Platform, PlatformEnum, handle
+from .base import BaseParser, Platform, handle
 
 
 class AcfunParser(BaseParser):
     # 平台信息
-    platform: ClassVar[Platform] = Platform(name=PlatformEnum.ACFUN, display_name="A站")
+    platform: ClassVar[Platform] = Platform(name="acfun", display_name="A站")
 
     def __init__(self, config: AstrBotConfig, downloader: Downloader):
         super().__init__(config, downloader)

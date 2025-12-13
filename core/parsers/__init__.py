@@ -15,6 +15,7 @@ from .data import (
 )
 from .douyin import DouyinParser
 from .kuaishou import KuaiShouParser
+from .lanzou import LanzouParser
 from .ncm import NCMParser
 from .nga import NGAParser
 from .tiktok import TikTokParser
@@ -42,6 +43,7 @@ __all__ = [
     "BilibiliParser",
     "DouyinParser",
     "KuaiShouParser",
+    "LanzouParser",
     "NCMParser",
     "NGAParser",
     "TikTokParser",
