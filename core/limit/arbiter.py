@@ -1,73 +1,29 @@
 import asyncio
-import random
 import time
-from collections import defaultdict
-from typing import TypedDict
+from collections.abc import Iterable
 
 from astrbot.api import logger
 from astrbot.core.config.astrbot_config import AstrBotConfig
 
 
-class EmojiLikeRecord(TypedDict):
-    """一次 emoji_like 行为"""
-
-    user_id: int  # 谁贴的（仅用于内部日志）
-    emoji_id: int  # 表情编号
-    ts: float  # 事件时间
-
-
 class EmojiLikeArbiter:
     """
-    group_msg_emoji_like 延迟仲裁器
+    使用固定 282 表情的延迟仲裁器
 
-    对外返回：
-        True  -> 自己胜出
-        False -> 未参与 / 失败
+    规则：
+    1. 先 fetch_emoji_like 看是否有人贴 282
+    2. 有人贴 → 不再贴
+    3. 没人贴 → 自己贴一个 282
+    4. 等待 wait_sec
+    5. 再 fetch_emoji_like
+    6. 用「当前小时 + 用户集合」决定唯一赢家
     """
 
+    EMOJI_ID = 282
+    EMOJI_TYPE = "1"
+
     def __init__(self, config: AstrBotConfig):
-        self.wait_sec = config["arbiter_wait_sec"]
-
-        # message_id -> 所有 emoji_like 记录
-        self._like_cache: dict[int, list[EmojiLikeRecord]] = defaultdict(list)
-
-        # message_id -> 自己贴的 emoji_id
-        self._self_emoji: dict[int, int] = {}
-
-        # 已裁决 message_id
-        self._locks: set[int] = set()
-
-    def record_like(self, raw_message: dict) -> None:
-        """
-        接收并解析 group_msg_emoji_like raw_message
-        """
-        if raw_message.get("notice_type") != "group_msg_emoji_like":
-            return
-
-        try:
-            message_id = int(raw_message["message_id"])
-            user_id = int(raw_message["user_id"])
-            event_time = float(raw_message["time"])
-            likes = raw_message.get("likes") or []
-        except (KeyError, TypeError, ValueError):
-            return
-
-        for item in likes:
-            try:
-                emoji_id = int(item["emoji_id"])
-            except (KeyError, TypeError, ValueError):
-                continue
-
-            self._like_cache[message_id].append(
-                {
-                    "user_id": user_id,
-                    "emoji_id": emoji_id,
-                    "ts": event_time,
-                }
-            )
-            logger.debug(
-                f"贴表情监听：用户({user_id})给消息({message_id})贴了表情({emoji_id})"
-            )
+        self.wait_sec: float = float(config["arbiter_wait_sec"])
 
     async def compete(
         self,
@@ -77,70 +33,93 @@ class EmojiLikeArbiter:
         self_id: int,
     ) -> bool:
         """
-        参与 emoji 竞选
+        参与仲裁
 
-        :return: 是否胜出
+        :return:
+            True  -> 本 Bot 负责解析
+            False -> 放弃解析
         """
-        # 已裁决，直接退出
-        if message_id in self._locks:
-            return False
+        # 第一次检查：是否已经有人贴了 282
+        users = await self._fetch_users(bot, message_id)
+        if users:
+            logger.debug(
+                f"[arbiter] 消息({message_id})已有人贴 {self.EMOJI_ID}：{users}"
+            )
+            return self._decide(users, self_id)
 
-        # 贴表情前已经监听到有人贴过，放弃竞选
-        if self._like_cache.get(message_id):
-            return False
-
-        emoji_id = random.randint(1, 433)
-
-        # 尝试贴表情
+        # 没人贴，尝试自己贴一个
         try:
             await bot.set_msg_emoji_like(
                 message_id=message_id,
-                emoji_id=emoji_id,
+                emoji_id=self.EMOJI_ID,
                 set=True,
             )
-        except Exception:
+            logger.debug(
+                f"[arbiter] Bot({self_id}) 给消息({message_id})贴了 {self.EMOJI_ID}"
+            )
+        except Exception as e:
+            logger.warning(f"[arbiter] Bot({self_id}) 贴 {self.EMOJI_ID} 失败：{e}")
             return False
 
-        # 贴成功后才记录自己
-        self._self_emoji[message_id] = emoji_id
-        self._like_cache[message_id].append(
-            {
-                "user_id": self_id,
-                "emoji_id": emoji_id,
-                "ts": time.time(),  # 本地兜底时间
-            }
-        )
-
-        # 等待其他 bot / 用户参与
+        # 等待其他 Bot / 用户反应
         await asyncio.sleep(self.wait_sec)
 
-        return self._decide(message_id, self_id)
-
-
-    def _decide(self, message_id: int, self_id: int) -> bool:
-        """
-        根据 emoji_id 最小值裁决胜负
-        """
-        if message_id in self._locks:
+        # 第二次检查
+        users = await self._fetch_users(bot, message_id)
+        if not users:
+            logger.debug(f"[arbiter] 消息({message_id}) 等待后仍无人贴 282")
             return False
 
-        records = self._like_cache.get(message_id)
-        my_emoji = self._self_emoji.get(message_id)
+        return self._decide(users, self_id)
 
+    async def _fetch_users(self, bot, message_id: int) -> list[int]:
+        """
+        获取所有给该消息贴了 282 表情的用户 tinyId
+        """
         try:
-            if not records or my_emoji is None:
-                return False
-
-            winner = min(records, key=lambda r: r["emoji_id"])
-
-            logger.debug(
-                f"链接消息（{message_id}）的仲裁赢家为：{winner['user_id']}。表情ID：{winner['emoji_id']}",
+            resp = await bot.fetch_emoji_like(
+                message_id=message_id,
+                emojiId=str(self.EMOJI_ID),
+                emojiType=self.EMOJI_TYPE,
             )
+        except Exception as e:
+            logger.warning(f"[arbiter] fetch_emoji_like 失败：{e}")
+            return []
 
-            self._locks.add(message_id)
+        lst = resp.get("emojiLikesList") or []
+        users: list[int] = []
 
-            return winner["user_id"] == self_id
-        finally:
-            # 清理状态
-            self._like_cache.pop(message_id, None)
-            self._self_emoji.pop(message_id, None)
+        for item in lst:
+            try:
+                users.append(int(item["tinyId"]))
+            except Exception:
+                continue
+
+        return users
+
+    def _decide(self, users: list[int], self_id: int) -> bool:
+        """
+        根据映射规则判断自己是否胜出
+        """
+        try:
+            winner = self._decide_winner(users, time.time())
+        except Exception as e:
+            logger.warning(f"[arbiter] 决策失败：{e}")
+            return False
+
+        logger.debug(f"[arbiter] 参与者={sorted(set(users))}，赢家={winner}")
+        return winner == self_id
+
+
+    def _decide_winner(self, user_ids: Iterable[int], ts: float) -> int:
+        """
+        根据 UNIX 小时 + 用户集合，确定唯一赢家
+        所有 Bot 在同一小时内结果必然一致
+        """
+        users = sorted(set(user_ids))
+        if not users:
+            raise ValueError("empty user_ids")
+
+        hour = int(ts // 3600)  # 使用 UTC 小时，避免时区问题
+        idx = hour % len(users)
+        return users[idx]

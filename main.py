@@ -7,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from itertools import chain
 from pathlib import Path
-from typing import Any
 
 import aiofiles
 
@@ -223,11 +222,6 @@ class ParserPlugin(Star):
         # 禁用会话
         if umo in self.config["disabled_sessions"]:
             return
-
-        # 监听贴表情事件
-        if isinstance(event, AiocqhttpMessageEvent):
-            raw_message = event.message_obj.raw_message
-            self.arbiter.record_like(raw_message)# type: ignore
 
         # 消息链
         chain = event.get_messages()
