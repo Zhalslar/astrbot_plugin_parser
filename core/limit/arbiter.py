@@ -1,6 +1,5 @@
 import asyncio
-import time
-from collections.abc import Iterable
+from datetime import datetime, timezone
 
 from astrbot.api import logger
 from astrbot.core.config.astrbot_config import AstrBotConfig
@@ -39,13 +38,13 @@ class EmojiLikeArbiter:
             True  -> 本 Bot 负责解析
             False -> 放弃解析
         """
-        # 第一次检查：是否已经有人贴了 282
+        # 第一次检查：是否已经有人贴了，有人贴了就放弃
         users = await self._fetch_users(bot, message_id)
         if users:
             logger.debug(
                 f"[arbiter] 消息({message_id})已有人贴 {self.EMOJI_ID}：{users}"
             )
-            return self._decide(users, self_id)
+            return False
 
         # 没人贴，尝试自己贴一个
         try:
@@ -67,14 +66,16 @@ class EmojiLikeArbiter:
         # 第二次检查
         users = await self._fetch_users(bot, message_id)
         if not users:
-            logger.debug(f"[arbiter] 消息({message_id}) 等待后仍无人贴 282")
-            return False
+            logger.warning(
+                f"[arbiter] 消息({message_id}) 等待后仍无人贴 {self.EMOJI_ID}，API 可能未及时反映 Bot 的操作，视为成功"
+            )
+            return True
 
         return self._decide(users, self_id)
 
     async def _fetch_users(self, bot, message_id: int) -> list[int]:
         """
-        获取所有给该消息贴了 282 表情的用户 tinyId
+        获取所有给该消息贴了表情的用户 tinyId
         """
         try:
             resp = await bot.fetch_emoji_like(
@@ -102,24 +103,15 @@ class EmojiLikeArbiter:
         根据映射规则判断自己是否胜出
         """
         try:
-            winner = self._decide_winner(users, time.time())
+            users = sorted(set(users))
+            if not users:
+                raise ValueError("empty user_ids")
+
+            hour = int(datetime.now(timezone.utc).timestamp() // 3600)
+            winner = users[hour % len(users)]
         except Exception as e:
             logger.warning(f"[arbiter] 决策失败：{e}")
             return False
 
-        logger.debug(f"[arbiter] 参与者={sorted(set(users))}，赢家={winner}")
+        logger.debug(f"[arbiter] 参与者={users}，赢家={winner}")
         return winner == self_id
-
-
-    def _decide_winner(self, user_ids: Iterable[int], ts: float) -> int:
-        """
-        根据 UNIX 小时 + 用户集合，确定唯一赢家
-        所有 Bot 在同一小时内结果必然一致
-        """
-        users = sorted(set(user_ids))
-        if not users:
-            raise ValueError("empty user_ids")
-
-        hour = int(ts // 3600)  # 使用 UTC 小时，避免时区问题
-        idx = hour % len(users)
-        return users[idx]
