@@ -396,7 +396,9 @@ class ParserPlugin(Star):
         self.running_tasks.clear()
         # 关下载器里的会话
         await self.downloader.close()
-        # 关所有解析器里的会话
-        await BaseParser.close_session()
+        # 关所有解析器里的会话 (去重后的实例)
+        unique_parsers = set(self.parser_map.values())
+        for parser in unique_parsers:
+            await parser.close_session()
         # 关缓存清理器
         await self.cleaner.stop()

@@ -64,9 +64,6 @@ class BaseParser:
     platform: ClassVar[Platform]
     """ 平台信息（包含名称和显示名称） """
 
-    _session: ClassVar[ClientSession | None] = None
-    """ 全局 ClientSession 对象 """
-
     if TYPE_CHECKING:
         _key_patterns: ClassVar[KeyPatterns]
         _handlers: ClassVar[dict[str, HandlerFunc]]
@@ -87,7 +84,10 @@ class BaseParser:
             self.proxy = config.get("proxy") or None
         else:
             self.proxy = None
-        self.client = self.get_session(config["common_timeout"])
+        
+        # 每个实例拥有独立的 session
+        self._session: ClientSession | None = None
+        self._timeout = config["common_timeout"]
 
     def __init_subclass__(cls, **kwargs):
         """自动注册子类到 _registry"""
@@ -116,19 +116,18 @@ class BaseParser:
         """获取所有已注册的 Parser 类"""
         return cls._registry
 
-    @classmethod
-    def get_session(cls, timeout: float = 30) -> ClientSession:
-        """取全局单例，首次调用时创建"""
-        if cls._session is None or cls._session.closed:
-            cls._session = ClientSession(timeout=ClientTimeout(total=timeout))
-        return cls._session
+    @property
+    def client(self) -> ClientSession:
+        """获取当前实例的 session，惰性创建"""
+        if self._session is None or self._session.closed:
+            self._session = ClientSession(timeout=ClientTimeout(total=self._timeout))
+        return self._session
 
-    @classmethod
-    async def close_session(cls) -> None:
-        """关闭全局单例，插件卸载时调用一次即可"""
-        if cls._session and not cls._session.closed:
-            await cls._session.close()
-            cls._session = None
+    async def close_session(self) -> None:
+        """关闭当前实例的 session"""
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
 
     async def parse(self, keyword: str, searched: Match[str]) -> ParseResult:
         """解析 URL 提取信息
