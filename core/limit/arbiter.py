@@ -218,11 +218,12 @@ class EmojiLikeArbiter:
 
     _EMOJI_ID = 282
     _EMOJI_TYPE = "1"
+    _WAIT_SEC = 1.0
 
     _FEEDBACK_EMOJI_ID = 355
     _FEEDBACK_EMOJI_TYPE = "1"
+    _FEEDBACK_WAIT_SEC = 0.7
 
-    _WAIT_SEC = 1.0
     _TIME_SLICE = 60
 
     # ===== 对外接口 =====
@@ -284,7 +285,7 @@ class EmojiLikeArbiter:
                     )
 
             # 等待反馈窗口
-            await asyncio.sleep(self._WAIT_SEC)
+            await asyncio.sleep(self._FEEDBACK_WAIT_SEC)
 
             # 观测是否已有 355（不关心是谁贴的）
             if await self._has_feedback(bot, mid):
