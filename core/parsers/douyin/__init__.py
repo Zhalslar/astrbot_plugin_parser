@@ -116,9 +116,9 @@ class DouyinParser(BaseParser):
         ) as resp:
             resp.raise_for_status()
 
-        from .slides import SlidesInfo
+            from .slides import SlidesInfo
 
-        slides_data = msgspec.json.decode(await resp.read(), type=SlidesInfo).aweme_details[0]
+            slides_data = msgspec.json.decode(await resp.read(), type=SlidesInfo).aweme_details[0]
         contents = []
 
         # 添加图片内容
