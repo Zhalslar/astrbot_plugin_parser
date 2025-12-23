@@ -2,17 +2,13 @@
 
 import asyncio
 import re
-import uuid
 from concurrent.futures import ThreadPoolExecutor
-from io import BytesIO
 from itertools import chain
 from pathlib import Path
 
-import aiofiles
-
 from astrbot.api import logger
 from astrbot.api.event import filter
-from astrbot.api.star import Context, Star, StarTools, register
+from astrbot.api.star import Context, Star, StarTools
 from astrbot.core import AstrBotConfig
 from astrbot.core.message.components import (
     At,
@@ -54,7 +50,6 @@ from .core.render import Renderer
 from .core.utils import extract_json_url, save_cookies_with_netscape
 
 
-@register("astrbot_plugin_parser", "Zhalslar", "...", "...")
 class ParserPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -134,10 +129,6 @@ class ParserPlugin(Star):
         # 关缓存清理器
         await self.cleaner.stop()
 
-    # endregion
-
-    # region 内部方法
-
     def _register_parser(self):
         """注册解析器"""
         # 获取所有解析器
@@ -179,18 +170,16 @@ class ParserPlugin(Star):
         """组装消息"""
         segs: list[BaseMessageComponent] = []
 
-        # 1.获取媒体内容
-        failed = 0
-
+        # 1. 获取媒体内容
         for cont in chain(
             result.contents, result.repost.contents if result.repost else ()
         ):
             try:
                 path = await cont.get_path()
             except (DownloadLimitException, ZeroSizeException):
-                continue  # 预期异常，不抛出
+                continue
             except DownloadException:
-                failed += 1
+                segs.append(Plain("此项媒体下载失败"))
                 continue
 
             match cont:
@@ -199,10 +188,11 @@ class ParserPlugin(Star):
                 case VideoContent() | DynamicContent():
                     segs.append(Video(str(path)))
                 case AudioContent():
-                    if self.config["audio_to_file"]:
-                        segs.append(File(name=path.name, file=str(path)))
-                    else:
-                        segs.append(Record(str(path)))
+                    segs.append(
+                        File(name=path.name, file=str(path))
+                        if self.config["audio_to_file"]
+                        else Record(str(path))
+                    )
                 case ImageContent():
                     segs.append(Image(str(path)))
                 case GraphicsContent() as g:
@@ -212,35 +202,15 @@ class ParserPlugin(Star):
                     if g.alt:
                         segs.append(Plain(g.alt))
 
-        # 2. 生成帖子卡片
-        need_card = not self.config["simple_mode"] or not segs
-        if need_card and result.render_image is None:
-            cache_key = uuid.uuid4().hex
-            cache_file = self.cache_dir / f"card_{cache_key}.png"
-            try:
-                image = await self.renderer.create_card_image(result)
-                output = BytesIO()
-                await asyncio.to_thread(image.save, output, format="PNG")
-                async with aiofiles.open(cache_file, "wb+") as f:
-                    await f.write(output.getvalue())
-                result.render_image = cache_file
-            except Exception:
-                result.render_image = None
-
-        # 3.插入卡片
-        if result.render_image is not None:
-            card_seg = Image(str(result.render_image))
-            segs.insert(0, card_seg)
-
-        # 4. 下载失败提示
-        if failed:
-            segs.append(Plain(f"{failed} 项媒体下载失败"))
+        # 2. 生成卡片
+        if not (
+            self.config["simple_mode"]
+            and any(isinstance(seg, Video | Record | File) for seg in segs)
+        ):
+            if image_path := await self.renderer.render_card(result):
+                segs.insert(0, Image(str(image_path)))
 
         return segs
-
-    # endregion
-
-    # region 事件处理
 
     @filter.event_message_type(filter.EventMessageType.ALL)
     async def on_message(self, event: AstrMessageEvent):
@@ -326,7 +296,7 @@ class ParserPlugin(Star):
         """一个耗时的任务包：解析+渲染+合并+发送"""
         # 解析
         parse_res = await self.parser_map[keyword].parse(keyword, searched)
-        # 渲染
+        # 渲染、组装消息
         segs = await self._make_messages(parse_res)
         # 合并
         if len(segs) >= self.config["forward_threshold"]:
@@ -344,10 +314,6 @@ class ParserPlugin(Star):
                 await event.send(event.chain_result(segs))
             except Exception as e:
                 logger.error(f"发送消息失败: {e}")
-
-    # endregion
-
-    # region 插件命令
 
     @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("bm")
@@ -372,7 +338,10 @@ class ParserPlugin(Star):
             return
 
         audio_path = await self.downloader.download_audio(
-            audio_url, audio_name=f"{bvid}-{page_idx}.mp3", ext_headers=parser.headers, proxy=parser.proxy
+            audio_url,
+            audio_name=f"{bvid}-{page_idx}.mp3",
+            ext_headers=parser.headers,
+            proxy=parser.proxy,
         )
         yield event.chain_result([Record(audio_path)])  # type: ignore
 
@@ -392,7 +361,9 @@ class ParserPlugin(Star):
 
         url = matched.group(0)
 
-        audio_path = await self.downloader.download_audio(url, use_ytdlp=True, proxy=parser.proxy)
+        audio_path = await self.downloader.download_audio(
+            url, use_ytdlp=True, proxy=parser.proxy
+        )
         yield event.chain_result([Record(audio_path)])  # type: ignore
 
         if self.config["upload_audio"]:
@@ -429,5 +400,3 @@ class ParserPlugin(Star):
             yield event.plain_result("解析已关闭")
         else:
             yield event.plain_result("解析已关闭，无需重复关闭")
-
-    # endregion
