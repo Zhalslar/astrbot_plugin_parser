@@ -5,4 +5,4 @@ curl_cffi>=0.13.0,<1.0.0
 msgspec>=0.20.0,<1.0.0
 apilmoji[tqdm]>=0.2.3,<1.0.0
 bilibili-api-python>=17.4.0,<18.0.0
-yt-dlp[default]>=2025.11.12
+yt-dlp[default]>=2025.12.8
