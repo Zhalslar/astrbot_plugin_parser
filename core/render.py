@@ -1,7 +1,10 @@
 
+import asyncio
+import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from functools import lru_cache, wraps
+from io import BytesIO
 from pathlib import Path
 from typing import ClassVar, ParamSpec, TypeVar
 
@@ -372,7 +375,7 @@ class Renderer:
         )
         return font.line_height * len(lines)
 
-    async def create_card_image(
+    async def _create_card_image(
         self,
         result: ParseResult,
         not_repost: bool = True,
@@ -418,6 +421,18 @@ class Renderer:
         # 绘制各部分内容
         await self._draw_sections(ctx, sections)
         return image
+
+    async def render_card(self, result: ParseResult) -> Path | None:
+        """渲染卡片并落盘，失败返回 None"""
+        cache = self.cache_dir / f"card_{uuid.uuid4().hex}.png"
+        try:
+            img = await self._create_card_image(result)
+            buf = BytesIO()
+            await asyncio.to_thread(img.save, buf, format="PNG")
+            cache.write_bytes(buf.getvalue())
+            return cache
+        except Exception:
+            return None
 
     @suppress_exception
     def _load_and_resize_cover(
@@ -685,7 +700,7 @@ class Renderer:
 
     async def _calculate_repost_section(self, repost: ParseResult) -> RepostSectionData:
         """计算转发内容的高度和内容（递归调用绘制方法）"""
-        repost_image = await self.create_card_image(repost, False)
+        repost_image = await self._create_card_image(repost, False)
         # 缩放图片
         scaled_width = int(repost_image.width * self.REPOST_SCALE)
         scaled_height = int(repost_image.height * self.REPOST_SCALE)
