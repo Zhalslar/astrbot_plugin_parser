@@ -1,5 +1,7 @@
+import json
 import re
-from typing import ClassVar
+from pathlib import Path
+from typing import TYPE_CHECKING, ClassVar
 
 import msgspec
 
@@ -14,6 +16,9 @@ from ..base import (
     handle,
 )
 
+if TYPE_CHECKING:
+    from ..data import ParseResult
+
 
 class DouyinParser(BaseParser):
     # 平台信息
@@ -21,6 +26,65 @@ class DouyinParser(BaseParser):
 
     def __init__(self, config: AstrBotConfig, downloader: Downloader):
         super().__init__(config, downloader)
+        self.douyin_ck = config.get("douyin_ck", "")
+        self._cookies_file = Path(config["data_dir"]) / "douyin_cookies.json"
+        self._load_cookies()
+        if self.douyin_ck:
+            self.ios_headers["Cookie"] = self.douyin_ck
+            self.android_headers["Cookie"] = self.douyin_ck
+
+    def _load_cookies(self):
+        """从文件加载抖音 cookies"""
+        if not self._cookies_file.exists():
+            return
+
+        try:
+            cookies_data = json.loads(self._cookies_file.read_text())
+            self.douyin_ck = cookies_data.get("cookie", "")
+            if self.douyin_ck:
+                self.ios_headers["Cookie"] = self.douyin_ck
+                self.android_headers["Cookie"] = self.douyin_ck
+                logger.info(f"已从 {self._cookies_file} 加载抖音 cookies")
+        except Exception as e:
+            logger.warning(f"加载抖音 cookies 失败: {e}")
+
+    def _save_cookies(self, cookies: str):
+        """保存抖音 cookies 到文件"""
+        try:
+            self._cookies_file.write_text(json.dumps({"cookie": cookies}, ensure_ascii=False))
+            logger.info(f"已保存抖音 cookies 到 {self._cookies_file}")
+        except Exception as e:
+            logger.warning(f"保存抖音 cookies 失败: {e}")
+
+    def _update_cookies_from_response(self, set_cookie_headers: list[str]):
+        """从响应的 Set-Cookie 头中更新 cookies"""
+        if not set_cookie_headers:
+            return
+
+        # 解析现有的 cookies
+        existing_cookies = {}
+        if self.douyin_ck:
+            for cookie in self.douyin_ck.split(";"):
+                cookie = cookie.strip()
+                if cookie and "=" in cookie:
+                    name, value = cookie.split("=", 1)
+                    existing_cookies[name.strip()] = value.strip()
+
+        # 解析新的 cookies
+        for set_cookie in set_cookie_headers:
+            cookie_part = set_cookie.split(";")[0].strip()
+            if cookie_part and "=" in cookie_part:
+                name, value = cookie_part.split("=", 1)
+                existing_cookies[name.strip()] = value.strip()
+
+        # 合并为 cookie 字符串
+        new_cookies = "; ".join([f"{k}={v}" for k, v in existing_cookies.items()])
+
+        if new_cookies != self.douyin_ck:
+            self.douyin_ck = new_cookies
+            self.ios_headers["Cookie"] = self.douyin_ck
+            self.android_headers["Cookie"] = self.douyin_ck
+            self._save_cookies(self.douyin_ck)
     # https://v.douyin.com/_2ljF4AmKL8
     @handle("v.douyin", r"v\.douyin\.com/[a-zA-Z0-9_\-]+")
     @handle("jx.douyin", r"jx\.douyin\.com/[a-zA-Z0-9_\-]+")
@@ -62,6 +126,32 @@ class DouyinParser(BaseParser):
     def _build_m_douyin_url(ty: str, vid: str) -> str:
         return f"https://m.douyin.com/share/{ty}/{vid}"
 
+    async def parse_with_redirect(
+        self,
+        url: str,
+        headers: dict[str, str] | None = None,
+    ) -> "ParseResult":
+        """先重定向再解析，并更新 cookies"""
+        headers = headers or self.ios_headers
+        async with self.client.get(
+            url, headers=headers, allow_redirects=False, ssl=False
+        ) as resp:
+            # 从响应中提取 Set-Cookie 并更新
+            set_cookie_headers = resp.headers.getall("Set-Cookie", [])
+            if set_cookie_headers:
+                self._update_cookies_from_response(set_cookie_headers)
+
+            # 只有在状态码是重定向状态码时才获取 Location
+            redirect_url = url
+            if resp.status in (301, 302, 303, 307, 308):
+                redirect_url = resp.headers.get("Location", url)
+
+        if redirect_url == url:
+            raise ParseException(f"无法重定向 URL: {url}")
+
+        keyword, searched = self.search_url(redirect_url)
+        return await self.parse(keyword, searched)
+
     async def parse_video(self, url: str):
         async with self.client.get(
             url, headers=self.ios_headers, allow_redirects=False, ssl=False
@@ -69,6 +159,10 @@ class DouyinParser(BaseParser):
             if resp.status != 200:
                 raise ParseException(f"status: {resp.status}")
             text = await resp.text()
+            # 从响应中提取 Set-Cookie 并更新
+            set_cookie_headers = resp.headers.getall("Set-Cookie", [])
+            if set_cookie_headers:
+                self._update_cookies_from_response(set_cookie_headers)
 
         pattern = re.compile(
             pattern=r"window\._ROUTER_DATA\s*=\s*(.*?)</script>",
@@ -115,6 +209,10 @@ class DouyinParser(BaseParser):
             url, params=params, headers=self.android_headers, ssl=False
         ) as resp:
             resp.raise_for_status()
+            # 从响应中提取 Set-Cookie 并更新
+            set_cookie_headers = resp.headers.getall("Set-Cookie", [])
+            if set_cookie_headers:
+                self._update_cookies_from_response(set_cookie_headers)
 
             from .slides import SlidesInfo
 
