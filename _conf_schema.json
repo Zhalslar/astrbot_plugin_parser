@@ -97,6 +97,12 @@
         },
         "default": 2
     },
+    "show_download_fail_tip": {
+        "description": "提示下载失败项",
+        "hint": "关闭后将不再发送与下载失败相关的提示（如“此项媒体下载失败”、“超过文件大小限制”等）",
+        "type": "bool",
+        "default": true
+    },
     "download_timeout": {
         "description": "下载请求超时秒数",
         "hint": "下载视频、音频等较大文件时的请求超时时间，单位秒。 建议设置大一点，视频、音频较大时下载耗时较长",

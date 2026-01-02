@@ -40,7 +40,12 @@ from .core.data import (
 )
 from .core.debounce import LinkDebouncer
 from .core.download import Downloader
-from .core.exception import DownloadException, DownloadLimitException, ZeroSizeException
+from .core.exception import (
+    DownloadException,
+    DownloadLimitException,
+    SizeLimitException,
+    ZeroSizeException,
+)
 from .core.parsers import (
     BaseParser,
     BilibiliParser,
@@ -202,6 +207,7 @@ class ParserPlugin(Star):
         plan = self._build_send_plan(result)
 
         segs: list[BaseMessageComponent] = []
+        show_download_fail_tip = self.config.get("show_download_fail_tip", True)
 
         # 预览卡片（单重媒体 + 不合并）
         if plan["preview_card"]:
@@ -220,7 +226,8 @@ class ParserPlugin(Star):
             except (DownloadLimitException, ZeroSizeException):
                 continue
             except DownloadException:
-                segs.append(Plain("此项媒体下载失败"))
+                if show_download_fail_tip:
+                    segs.append(Plain("此项媒体下载失败"))
                 continue
 
             match cont:
@@ -237,8 +244,13 @@ class ParserPlugin(Star):
         for cont in plan["heavy"]:
             try:
                 path: Path = await cont.get_path()
+            except SizeLimitException:
+                if show_download_fail_tip:
+                    segs.append(Plain("超过文件大小限制"))
+                continue
             except DownloadException:
-                segs.append(Plain("此项媒体下载失败"))
+                if show_download_fail_tip:
+                    segs.append(Plain("此项媒体下载失败"))
                 continue
 
             match cont:
