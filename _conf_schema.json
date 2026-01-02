@@ -125,6 +125,12 @@
         "type": "text",
         "default": ""
     },
+    "douyin_ck": {
+        "description": "抖音 Cookies",
+        "hint": "用于抖音解析的登录Cookies，留空则使用无登录状态",
+        "type": "text",
+        "default": ""
+    },
     "bili_video_codecs": {
         "description": "B站视频编码",
         "hint": "优先下载的编码类型，可选：AVC、AV1、HEV",

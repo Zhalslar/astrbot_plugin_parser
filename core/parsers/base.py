@@ -206,13 +206,14 @@ class BaseParser:
         name: str,
         avatar_url: str | None = None,
         description: str | None = None,
+        ext_headers: dict[str, str] | None = None,
     ):
         """创建作者对象"""
 
         avatar_task = None
         if avatar_url:
             avatar_task = self.downloader.download_img(
-                avatar_url, ext_headers=self.headers, proxy=self.proxy
+                avatar_url, ext_headers=ext_headers or self.headers, proxy=self.proxy
             )
         return Author(name=name, avatar=avatar_task, description=description)
 
@@ -221,16 +222,17 @@ class BaseParser:
         url_or_task: str | Task[Path],
         cover_url: str | None = None,
         duration: float = 0.0,
+        ext_headers: dict[str, str] | None = None,
     ):
         """创建视频内容"""
         cover_task = None
         if cover_url:
             cover_task = self.downloader.download_img(
-                cover_url, ext_headers=self.headers, proxy=self.proxy
+                cover_url, ext_headers=ext_headers or self.headers, proxy=self.proxy
             )
         if isinstance(url_or_task, str):
             url_or_task = self.downloader.download_video(
-                url_or_task, ext_headers=self.headers, proxy=self.proxy
+                url_or_task, ext_headers=ext_headers or self.headers, proxy=self.proxy
             )
 
         return VideoContent(url_or_task, cover_task, duration)
@@ -238,22 +240,24 @@ class BaseParser:
     def create_image_contents(
         self,
         image_urls: list[str],
+        ext_headers: dict[str, str] | None = None,
     ):
         """创建图片内容列表"""
         contents: list[ImageContent] = []
         for url in image_urls:
-            task = self.downloader.download_img(url, ext_headers=self.headers, proxy=self.proxy)
+            task = self.downloader.download_img(url, ext_headers=ext_headers or self.headers, proxy=self.proxy)
             contents.append(ImageContent(task))
         return contents
 
     def create_dynamic_contents(
         self,
         dynamic_urls: list[str],
+        ext_headers: dict[str, str] | None = None,
     ):
         """创建动态图片内容列表"""
         contents: list[DynamicContent] = []
         for url in dynamic_urls:
-            task = self.downloader.download_video(url, ext_headers=self.headers, proxy=self.proxy)
+            task = self.downloader.download_video(url, ext_headers=ext_headers or self.headers, proxy=self.proxy)
             contents.append(DynamicContent(task))
         return contents
 
