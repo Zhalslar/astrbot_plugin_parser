@@ -79,7 +79,7 @@ class YouTubeParser(BaseParser):
     )
     async def ym(self, searched: re.Match[str]):
         """获取油管的音频(需加ym前缀)"""
-        url = searched.group(0)
+        url = searched.group("url")
         video_info = await self.downloader.ytdlp_extract_info(
             url, self.ytb_cookies_file
         )

@@ -36,7 +36,7 @@ class Debouncer:
         bucket[key] = now
         return False
 
-    def hit(self, session: str, link: str) -> bool:
+    def hit_link(self, session: str, link: str) -> bool:
         """基于 link 的防抖"""
         return self._hit(session, f"link:{link}")
 

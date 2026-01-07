@@ -186,7 +186,7 @@ class ParserPlugin(Star):
 
         # 基于link防抖
         link = searched.group(0)
-        if self.debouncer.hit(umo, link):
+        if self.debouncer.hit_link(umo, link):
             logger.warning(f"[链接防抖] 链接 {link} 在防抖时间内，跳过解析")
             return
 
@@ -195,7 +195,7 @@ class ParserPlugin(Star):
 
         # 基于资源ID防抖
         resource_id = parse_res.get_resource_id()
-        if self.debouncer.hit(umo, resource_id):
+        if self.debouncer.hit_resource(umo, resource_id):
             logger.warning(f"[资源防抖] 资源 {resource_id} 在防抖时间内，跳过发送")
             return
 

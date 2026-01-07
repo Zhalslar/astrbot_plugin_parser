@@ -23,7 +23,12 @@ from .data import (
     ParseResult,
     VideoContent,
 )
-from .exception import DownloadException, DownloadLimitException, ZeroSizeException
+from .exception import (
+    DownloadException,
+    DownloadLimitException,
+    SizeLimitException,
+    ZeroSizeException,
+)
 from .render import Renderer
 
 
@@ -134,11 +139,10 @@ class MessageSender:
             try:
                 path: Path = await cont.get_path()
             except (DownloadLimitException, ZeroSizeException):
-                # 限流 / 空文件：静默跳过，不影响整体发送
                 continue
             except DownloadException:
-                # 明确提示下载失败，但不中断后续内容
-                segs.append(Plain("此项媒体下载失败"))
+                if self.config["show_download_fail_tip"]:
+                    segs.append(Plain("此项媒体下载失败"))
                 continue
 
             match cont:
@@ -156,15 +160,18 @@ class MessageSender:
         for cont in plan["heavy"]:
             try:
                 path: Path = await cont.get_path()
+            except SizeLimitException:
+                segs.append(Plain("此项媒体超过大小限制"))
+                continue
             except DownloadException:
-                segs.append(Plain("此项媒体下载失败"))
+                if self.config["show_download_fail_tip"]:
+                    segs.append(Plain("此项媒体下载失败"))
                 continue
 
             match cont:
                 case VideoContent() | DynamicContent():
                     segs.append(Video(str(path)))
                 case AudioContent():
-                    # 音频是否转文件由配置决定
                     segs.append(
                         File(name=path.name, file=str(path))
                         if self.config["audio_to_file"]

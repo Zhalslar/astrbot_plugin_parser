@@ -2,7 +2,7 @@ name: astrbot_plugin_parser
 display_name: 万能解析器
 desc: 高性能低耦合的万能链接解析器。支持的类型：视频、图集、音频。 支持的平台：A站、B站、抖音、tiktok、微博、小红书、快手、油管、X...
 help: 略
-version: v1.1.2
+version: v1.1.3
 author: Zhalslar
 repo: https://github.com/Zhalslar/astrbot_plugin_parser
 

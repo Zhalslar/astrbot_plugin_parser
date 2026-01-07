@@ -67,7 +67,7 @@ class BilibiliParser(BaseParser):
 
         return await self.parse_video(bvid=bvid, page_num=page_num)
 
-    @handle("bmBV", r"^bm(?P<bvid>BV[0-9a-zA-Z]{10})(?:\s(?P<page_num>\d{1,3}))?$")
+    @handle("bm", r"^bm(?P<bvid>BV[0-9a-zA-Z]{10})(?:\s(?P<page_num>\d{1,3}))?$")
     async def _parse_bv_bm(self, searched: Match[str]):
         bvid = searched.group("bvid")
         page = int(searched.group("page_num") or 1)
