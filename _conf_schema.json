@@ -106,12 +106,6 @@
         "type": "bool",
         "default": true
     },
-    "show_video_audio_info": {
-        "description": "视频音轨调试信息",
-        "hint": "发送视频时附带提示是否检测到音轨（需要 ffprobe）",
-        "type": "bool",
-        "default": true
-    },
     "download_timeout": {
         "description": "下载请求超时秒数",
         "hint": "下载视频、音频等较大文件时的请求超时时间，单位秒。 建议设置大一点，视频、音频较大时下载耗时较长",

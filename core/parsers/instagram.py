@@ -22,8 +22,6 @@ class InstagramParser(BaseParser):
     def __init__(self, config: AstrBotConfig, downloader: Downloader):
         super().__init__(config, downloader)
         self.ig_cookies_file: Path | None = None
-        if self.config.get("ig_cookies_file"):
-            self.ig_cookies_file = Path(self.config["ig_cookies_file"])
         self._set_cookies()
 
     def _set_cookies(self) -> None:
@@ -44,8 +42,6 @@ class InstagramParser(BaseParser):
                 return
             save_cookies_with_netscape(cookies, cookie_file, "instagram.com")
 
-        self.config["ig_cookies_file"] = str(cookie_file)
-        self.config.save_config()
         self.ig_cookies_file = cookie_file
 
     @staticmethod
@@ -135,7 +131,6 @@ class InstagramParser(BaseParser):
         opts = {
             "quiet": True,
             "skip_download": True,
-            "force_generic_extractor": True,
         }
         if self.ig_cookies_file and self.ig_cookies_file.is_file():
             opts["cookiefile"] = str(self.ig_cookies_file)
@@ -144,7 +139,9 @@ class InstagramParser(BaseParser):
             try:
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     raw = await asyncio.to_thread(ydl.extract_info, url, download=False)
-                return raw if isinstance(raw, dict) else None
+                if isinstance(raw, dict):
+                    return raw
+                return None
             except DownloadError as exc:
                 logger.warning(
                     "Instagram yt-dlp extract_info failed (%s/%s): %s",

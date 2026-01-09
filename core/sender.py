@@ -30,7 +30,6 @@ from .exception import (
     ZeroSizeException,
 )
 from .render import Renderer
-from .utils import has_audio_stream
 
 
 class MessageSender:
@@ -174,12 +173,6 @@ class MessageSender:
             match cont:
                 case VideoContent() | DynamicContent():
                     segs.append(Video(str(path)))
-                    if self.config.get("show_video_audio_info", False):
-                        has_audio = await has_audio_stream(path)
-                        if has_audio is None:
-                            segs.append(Plain("音轨: 未知"))
-                        else:
-                            segs.append(Plain("音轨: 有" if has_audio else "音轨: 无"))
                 case AudioContent():
                     segs.append(
                         File(name=path.name, file=str(path))
