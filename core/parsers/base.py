@@ -80,7 +80,7 @@ class BaseParser:
         self.data_dir = Path(config["data_dir"])
         self.downloader = downloader
         # Proxy only applies to YouTube and TikTok as per configuration
-        proxy_enabled_platforms = ["youtube", "tiktok", "instagram"]
+        proxy_enabled_platforms = ["youtube", "tiktok"]
         if self.__class__.platform.name in proxy_enabled_platforms:
             self.proxy = config.get("proxy") or None
         else:
@@ -120,10 +120,7 @@ class BaseParser:
     def client(self) -> ClientSession:
         """获取当前实例的 session，惰性创建"""
         if self._session is None or self._session.closed:
-            self._session = ClientSession(
-                timeout=ClientTimeout(total=self._timeout),
-                trust_env=True,
-            )
+            self._session = ClientSession(timeout=ClientTimeout(total=self._timeout))
         return self._session
 
     async def close_session(self) -> None:

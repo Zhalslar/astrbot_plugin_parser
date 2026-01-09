@@ -4,8 +4,6 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 import yt_dlp
-
-from astrbot.api import logger
 from astrbot.core.config.astrbot_config import AstrBotConfig
 
 from ..data import ParseResult, Platform
@@ -101,13 +99,11 @@ class InstagramParser(BaseParser):
     async def _parse_from_ytdlp(self, page_url: str) -> ParseResult | None:
         info = await self._fetch_ytdlp_info(page_url)
         if not info:
-            logger.warning("[instagram] ytdlp returned empty info")
             return None
 
         ext_headers = {**self.headers, "Referer": "https://www.instagram.com/"}
         contents = self._extract_ytdlp_contents(info, ext_headers)
         if not contents:
-            logger.warning("[instagram] ytdlp extracted no media contents")
             return None
 
         author_name = self._first_text(
@@ -134,19 +130,12 @@ class InstagramParser(BaseParser):
             "skip_download": True,
             "force_generic_extractor": True,
         }
-        if self.proxy:
-            opts["proxy"] = self.proxy
         if self.ig_cookies_file and self.ig_cookies_file.is_file():
             opts["cookiefile"] = str(self.ig_cookies_file)
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 raw = await asyncio.to_thread(ydl.extract_info, url, download=False)
-        except Exception as exc:
-            logger.warning(
-                "[instagram] ytdlp extract failed: %s: %s",
-                type(exc).__name__,
-                exc,
-            )
+        except Exception:
             return None
         return raw if isinstance(raw, dict) else None
 

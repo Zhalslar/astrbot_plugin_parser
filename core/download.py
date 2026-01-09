@@ -77,8 +77,7 @@ class Downloader:
         self.info_cache: LimitedSizeDict[str, VideoInfo] = LimitedSizeDict()
         # 用于流式下载的客户端
         self.client = ClientSession(
-            timeout=ClientTimeout(total=config["download_timeout"]),
-            trust_env=True,
+            timeout=ClientTimeout(total=config["download_timeout"])
         )
 
     @auto_task

@@ -183,7 +183,7 @@
     },
     "proxy": {
         "description": "代理地址",
-        "hint": "如 http://127.0.0.1:7890，留空则走环境变量 http(s)_proxy。仅作用于 youtube, tiktok, instagram 解析",
+        "hint": "如 http://127.0.0.1:7890，留空则直连。仅作用于 youtube, tiktok 解析",
         "type": "string",
         "default": ""
     },
