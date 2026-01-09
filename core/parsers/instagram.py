@@ -265,7 +265,7 @@ class InstagramParser(BaseParser):
                     )
                 if audio_url:
                     output_path = self.downloader.cache_dir / generate_file_name(
-                        video_url, ".mp4"
+                        f"{video_url}|{audio_url}", ".mp4"
                     )
                     if output_path.exists():
                         video_task = output_path
