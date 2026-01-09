@@ -265,7 +265,27 @@ class InstagramParser(BaseParser):
         is_video_url = any(key in final_url for key in ("/reel/", "/reels/", "/tv/"))
         shortcode = self._extract_shortcode(final_url) or self._extract_shortcode(url)
         base_prefix = f"ig_{shortcode}" if shortcode else "ig"
-        info = await self._extract_info(final_url)
+        try:
+            info = await self._extract_info(final_url)
+        except ParseException:
+            if not is_video_url:
+                gallery_urls = await self._gallery_dl_image_urls(final_url)
+                contents = []
+                for idx, image_url in enumerate(gallery_urls, start=1):
+                    image_name = (
+                        f"{base_prefix}_{idx}{Path(urlparse(image_url).path).suffix}"
+                        if shortcode
+                        else None
+                    )
+                    image_task = self.downloader.download_img(
+                        image_url,
+                        img_name=image_name,
+                        ext_headers=self.headers,
+                        proxy=self.proxy,
+                    )
+                    contents.append(ImageContent(image_task))
+                return self.result(contents=contents, url=final_url)
+            raise
         entries = self._iter_entries(info)
         single_entry = len(entries) == 1
 
