@@ -60,6 +60,19 @@ class InstagramParser(BaseParser):
             "title": _match("og:title") or "",
         }
 
+    async def _upgrade_image_url(
+        self, image_url: str, shortcode: str | None
+    ) -> str:
+        if not shortcode:
+            return image_url
+        if "s640x640" not in image_url and "stp=" not in image_url:
+            return image_url
+        probe_url = f"https://www.instagram.com/p/{shortcode}/media/?size=l"
+        try:
+            return await self.get_final_url(probe_url, headers=self.headers)
+        except Exception:
+            return image_url
+
     async def _extract_info(self, url: str) -> dict[str, Any]:
         retries = 2
         last_exc: Exception | None = None
@@ -292,6 +305,7 @@ class InstagramParser(BaseParser):
         fallback_video_tried = False
         for idx, entry in enumerate(entries):
             entry_id = self._entry_identity(entry, str(idx))
+            entry_shortcode = entry.get("shortcode")
             base_name = f"{base_prefix}_{entry_id}"
             video_fmt, audio_fmt = self._pick_formats(entry)
             video_url = self._format_url(video_fmt) if video_fmt else None
@@ -367,6 +381,9 @@ class InstagramParser(BaseParser):
                     except ParseException:
                         pass
                 if image_url:
+                    image_url = await self._upgrade_image_url(
+                        image_url, entry_shortcode
+                    )
                     image_name = f"{base_name}{self._url_suffix(image_url, '.jpg')}"
                     image_task = self.downloader.download_img(
                         image_url,
@@ -406,6 +423,7 @@ class InstagramParser(BaseParser):
             if not contents:
                 image_url = self._pick_image_url(meta)
                 if isinstance(image_url, str) and image_url:
+                    image_url = await self._upgrade_image_url(image_url, shortcode)
                     image_name = f"{base_prefix}{self._url_suffix(image_url, '.jpg')}"
                     image_task = self.downloader.download_img(
                         image_url,
