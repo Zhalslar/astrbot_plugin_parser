@@ -1,6 +1,8 @@
 import asyncio
 import html
+import json
 import re
+import sys
 from pathlib import Path
 from typing import Any, ClassVar
 from urllib.parse import urlparse
@@ -9,7 +11,7 @@ import yt_dlp
 
 from astrbot.core.config.astrbot_config import AstrBotConfig
 
-from ..data import Platform, VideoContent
+from ..data import ImageContent, Platform, VideoContent
 from ..download import Downloader
 from ..exception import ParseException
 from ..utils import generate_file_name, safe_unlink, save_cookies_with_netscape
@@ -38,6 +40,57 @@ class InstagramParser(BaseParser):
         cookies_file.parent.mkdir(parents=True, exist_ok=True)
         save_cookies_with_netscape(ig_ck, cookies_file, "instagram.com")
         return cookies_file
+
+    async def _gallery_dl_image_urls(self, url: str) -> list[str]:
+        cmd = [sys.executable, "-m", "gallery_dl", "-j"]
+        if self._cookies_file and self._cookies_file.is_file():
+            cmd += ["--cookies", str(self._cookies_file)]
+        cmd.append(url)
+
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        if process.returncode != 0:
+            raise ParseException(
+                f"gallery-dl 解析失败: {stderr.decode(errors='ignore').strip()}"
+            )
+
+        text = stdout.decode(errors="ignore").strip()
+        if not text:
+            raise ParseException("gallery-dl 输出为空")
+
+        urls: list[str] = []
+        try:
+            data = json.loads(text)
+            if isinstance(data, list):
+                for item in data:
+                    if (
+                        isinstance(item, list)
+                        and len(item) >= 3
+                        and item[0] == 3
+                        and isinstance(item[1], str)
+                    ):
+                        urls.append(self._clean_url(item[1]))
+        except json.JSONDecodeError:
+            for line in text.splitlines():
+                try:
+                    item = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    isinstance(item, list)
+                    and len(item) >= 3
+                    and item[0] == 3
+                    and isinstance(item[1], str)
+                ):
+                    urls.append(self._clean_url(item[1]))
+
+        if not urls:
+            raise ParseException("gallery-dl 未返回图片链接")
+        return urls
 
     async def _extract_info(self, url: str) -> dict[str, Any]:
         retries = 2
@@ -279,6 +332,21 @@ class InstagramParser(BaseParser):
                         contents.append(VideoContent(video_task, None, duration))
                 except ParseException:
                     pass
+            if not contents and not is_video_url:
+                gallery_urls = await self._gallery_dl_image_urls(final_url)
+                for idx, image_url in enumerate(gallery_urls, start=1):
+                    image_name = (
+                        f"{base_prefix}_{idx}{Path(urlparse(image_url).path).suffix}"
+                        if shortcode
+                        else None
+                    )
+                    image_task = self.downloader.download_img(
+                        image_url,
+                        img_name=image_name,
+                        ext_headers=self.headers,
+                        proxy=self.proxy,
+                    )
+                    contents.append(ImageContent(image_task))
             if not contents:
                 raise ParseException("未找到可下载的视频")
         author_name = None
