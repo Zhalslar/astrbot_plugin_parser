@@ -48,6 +48,24 @@ class InstagramParser(BaseParser):
             raise ParseException("获取视频信息失败")
         return raw
 
+    async def _download_with_ytdlp(self, url: str) -> Path:
+        output_path = self.downloader.cache_dir / generate_file_name(url, ".mp4")
+        if output_path.exists():
+            return output_path
+        opts: dict[str, Any] = {
+            "quiet": True,
+            "outtmpl": str(output_path),
+            "merge_output_format": "mp4",
+            "format": "best[height<=720]/bestvideo[height<=720]+bestaudio/best",
+        }
+        if self.proxy:
+            opts["proxy"] = self.proxy
+        if self._cookies_file and self._cookies_file.is_file():
+            opts["cookiefile"] = str(self._cookies_file)
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            await asyncio.to_thread(ydl.download, [url])
+        return output_path
+
     @staticmethod
     def _iter_entries(info: dict[str, Any]) -> list[dict[str, Any]]:
         if info.get("_type") == "playlist":
@@ -180,10 +198,22 @@ class InstagramParser(BaseParser):
             if meta_entry is None:
                 meta_entry = entry
 
-        if not contents:
-            raise ParseException("未找到可下载的视频")
-
         meta = meta_entry or info
+        if not contents:
+            fallback_url = meta.get("webpage_url") or final_url
+            if not isinstance(fallback_url, str) or not fallback_url:
+                raise ParseException("未找到可下载的视频")
+            thumbnail = meta.get("thumbnail")
+            duration = float(meta.get("duration") or 0)
+            cover_task = None
+            if thumbnail:
+                cover_task = self.downloader.download_img(
+                    thumbnail,
+                    ext_headers=self.headers,
+                    proxy=self.proxy,
+                )
+            video_task = await self._download_with_ytdlp(fallback_url)
+            contents.append(VideoContent(video_task, cover_task, duration))
         author_name = None
         for key in ("uploader", "uploader_id", "channel"):
             val = meta.get(key)
