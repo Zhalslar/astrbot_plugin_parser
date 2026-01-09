@@ -18,6 +18,7 @@
             "快手",
             "NGA",
             "TikTok",
+            "Instagram",
             "推特",
             "油管",
             "网易云"
@@ -31,6 +32,7 @@
             "快手",
             "NGA",
             "TikTok",
+            "Instagram",
             "推特",
             "油管"
         ]
@@ -173,9 +175,15 @@
         "type": "text",
         "default": ""
     },
+    "ig_ck": {
+        "description": "Instagram Cookies",
+        "hint": "用于Instagram解析的登录Cookies，留空则使用无登录状态",
+        "type": "text",
+        "default": ""
+    },
     "proxy": {
         "description": "代理地址",
-        "hint": "如 http://127.0.0.1:7890，留空则直连。仅作用于 youtube, tiktok 解析",
+        "hint": "如 http://127.0.0.1:7890，留空则直连。仅作用于 youtube, tiktok, instagram 解析",
         "type": "string",
         "default": ""
     },

@@ -3,6 +3,7 @@ from .acfun import AcfunParser
 from .base import BaseParser
 from .bilibili import BilibiliParser
 from .douyin import DouyinParser
+from .instagram import InstagramParser
 from .kuaishou import KuaiShouParser
 from .ncm import NCMParser
 from .nga import NGAParser
@@ -17,6 +18,7 @@ __all__ = [
     "AcfunParser",
     "BilibiliParser",
     "DouyinParser",
+    "InstagramParser",
     "KuaiShouParser",
     "NCMParser",
     "NGAParser",
