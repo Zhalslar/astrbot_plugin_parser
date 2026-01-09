@@ -7,6 +7,7 @@ from typing import Any, ParamSpec, TypeVar
 
 import aiofiles
 import yt_dlp
+from yt_dlp.utils import DownloadError
 from aiohttp import ClientError, ClientSession, ClientTimeout
 from msgspec import Struct, convert
 from tqdm.asyncio import tqdm
@@ -176,6 +177,7 @@ class Downloader:
         video_name: str | None = None,
         ext_headers: dict[str, str] | None = None,
         use_ytdlp: bool = False,
+        ytdlp_format: str | None = None,
         cookiefile: Path | None = None,
         proxy: str | None | object = ...,
     ) -> Path:
@@ -196,7 +198,7 @@ class Downloader:
             httpx.HTTPError: When download fails
         """
         if use_ytdlp:
-            return await self._ytdlp_download_video(url, cookiefile)
+            return await self._ytdlp_download_video(url, cookiefile, ytdlp_format)
 
         if video_name is None:
             video_name = generate_file_name(url, ".mp4")
@@ -393,7 +395,10 @@ class Downloader:
         return info
 
     async def _ytdlp_download_video(
-        self, url: str, cookiefile: Path | None = None
+        self,
+        url: str,
+        cookiefile: Path | None = None,
+        ytdlp_format: str | None = None,
     ) -> Path:
         info = await self.ytdlp_extract_info(url, cookiefile)
         if info.duration > self.max_duration:
@@ -407,11 +412,15 @@ class Downloader:
             "outtmpl": str(video_path),
             "merge_output_format": "mp4",
             # "format": f"bv[filesize<={info.duration // 10 + 10}M]+ba/b[filesize<={info.duration // 8 + 10}M]",
-            "format": "best[height<=720]/bestvideo[height<=720]+bestaudio/best",
+            "format": ytdlp_format
+            or "best[height<=720]/bestvideo[height<=720]+bestaudio/best",
             "postprocessors": [
                 {"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}
             ],
             "cookiefile": None,
+            "retries": 3,
+            "fragment_retries": 3,
+            "socket_timeout": self.config["download_timeout"],
         }
         if self.proxy:
             opts["proxy"] = self.proxy
@@ -419,7 +428,10 @@ class Downloader:
             opts["cookiefile"] = str(cookiefile)
 
         with yt_dlp.YoutubeDL(opts) as ydl:
-            await asyncio.to_thread(ydl.download, [url])
+            try:
+                await asyncio.to_thread(ydl.download, [url])
+            except DownloadError as exc:
+                raise DownloadException(str(exc)) from exc
         return video_path
 
     async def _ytdlp_download_audio(self, url: str, cookiefile: Path | None) -> Path:
@@ -439,6 +451,9 @@ class Downloader:
                 }
             ],
             "cookiefile": None,
+            "retries": 3,
+            "fragment_retries": 3,
+            "socket_timeout": self.config["download_timeout"],
         }
         if self.proxy:
             opts["proxy"] = self.proxy
@@ -446,7 +461,10 @@ class Downloader:
             opts["cookiefile"] = str(cookiefile)
 
         with yt_dlp.YoutubeDL(opts) as ydl:
-            await asyncio.to_thread(ydl.download, [url])
+            try:
+                await asyncio.to_thread(ydl.download, [url])
+            except DownloadError as exc:
+                raise DownloadException(str(exc)) from exc
         return audio_path
 
     async def close(self):
