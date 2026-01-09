@@ -1,6 +1,5 @@
 import asyncio
 import html
-import json
 import re
 from pathlib import Path
 from typing import Any, ClassVar
@@ -10,7 +9,7 @@ import yt_dlp
 
 from astrbot.core.config.astrbot_config import AstrBotConfig
 
-from ..data import ImageContent, Platform, VideoContent
+from ..data import Platform, VideoContent
 from ..download import Downloader
 from ..exception import ParseException
 from ..utils import generate_file_name, safe_unlink, save_cookies_with_netscape
@@ -39,157 +38,6 @@ class InstagramParser(BaseParser):
         cookies_file.parent.mkdir(parents=True, exist_ok=True)
         save_cookies_with_netscape(ig_ck, cookies_file, "instagram.com")
         return cookies_file
-
-    async def _fetch_og_meta(self, url: str) -> dict[str, str]:
-        async with self.client.get(
-            url, headers=self.headers, allow_redirects=True, proxy=self.proxy
-        ) as resp:
-            if resp.status >= 400:
-                raise ParseException(f"获取页面失败 {resp.status}")
-            html = await resp.text()
-
-        def _match(prop: str) -> str | None:
-            pattern = rf'<meta[^>]+property="{prop}"[^>]+content="([^"]+)"'
-            if matched := re.search(pattern, html):
-                return matched.group(1)
-            return None
-
-        og_image = _match("og:image") or ""
-        og_video = _match("og:video") or ""
-        return {
-            "image": self._clean_url(og_image) if og_image else "",
-            "video": self._clean_url(og_video) if og_video else "",
-            "title": _match("og:title") or "",
-        }
-
-    async def _fetch_display_image(self, url: str) -> str | None:
-        async with self.client.get(
-            url, headers=self.headers, allow_redirects=True, proxy=self.proxy
-        ) as resp:
-            if resp.status >= 400:
-                return None
-            html_text = await resp.text()
-
-        def _json_unescape(value: str) -> str:
-            try:
-                return json.loads(f'"{value}"')
-            except json.JSONDecodeError:
-                return value.replace("\\/", "/").replace("\\u0026", "&")
-
-        best_url = None
-        best_area = 0
-        resource_patterns = [
-            r'"src":"([^"]+)","config_width":(\d+),"config_height":(\d+)"',
-            r'"config_width":(\d+),"config_height":(\d+),"src":"([^"]+)"',
-        ]
-        for pattern in resource_patterns:
-            for match in re.finditer(pattern, html_text):
-                if len(match.groups()) == 3:
-                    if pattern.startswith('"src"'):
-                        src, width, height = match.group(1), match.group(2), match.group(3)
-                    else:
-                        width, height, src = match.group(1), match.group(2), match.group(3)
-                    area = int(width) * int(height)
-                    if area > best_area:
-                        best_area = area
-                        best_url = _json_unescape(src)
-
-        if best_url:
-            return self._clean_url(best_url)
-
-        if match := re.search(r'"display_url":"([^"]+)"', html_text):
-            return self._clean_url(_json_unescape(match.group(1)))
-
-        return None
-
-    @staticmethod
-    def _best_resource_url(resources: list[dict[str, Any]]) -> str | None:
-        best_url = None
-        best_area = 0
-        for res in resources:
-            if not isinstance(res, dict):
-                continue
-            url = res.get("src") or res.get("url") or res.get("display_url")
-            if not isinstance(url, str):
-                continue
-            width = res.get("config_width") or res.get("width") or 0
-            height = res.get("config_height") or res.get("height") or 0
-            area = int(width) * int(height)
-            if area > best_area:
-                best_area = area
-                best_url = url
-        return best_url
-
-    @staticmethod
-    def _find_resource_list(data: Any) -> list[dict[str, Any]] | None:
-        if isinstance(data, dict):
-            for key in ("display_resources", "candidates"):
-                value = data.get(key)
-                if isinstance(value, list):
-                    return value
-            for value in data.values():
-                found = InstagramParser._find_resource_list(value)
-                if found:
-                    return found
-        elif isinstance(data, list):
-            for item in data:
-                found = InstagramParser._find_resource_list(item)
-                if found:
-                    return found
-        return None
-
-    async def _fetch_json_image(self, shortcode: str) -> str | None:
-        for suffix in ("?__a=1&__d=dis", "?__a=1"):
-            url = f"https://www.instagram.com/p/{shortcode}/{suffix}"
-            try:
-                async with self.client.get(
-                    url, headers=self.headers, allow_redirects=True, proxy=self.proxy
-                ) as resp:
-                    if resp.status >= 400:
-                        continue
-                    data = json.loads(await resp.text())
-            except Exception:
-                continue
-
-            resources = None
-            graphql = data.get("graphql") if isinstance(data, dict) else None
-            if isinstance(graphql, dict):
-                media = graphql.get("shortcode_media")
-                if isinstance(media, dict):
-                    resources = media.get("display_resources")
-
-            if resources is None:
-                resources = self._find_resource_list(data)
-            if isinstance(resources, list):
-                best_url = self._best_resource_url(resources)
-                if best_url:
-                    return self._clean_url(best_url)
-        return None
-
-    async def _upgrade_image_url(
-        self, image_url: str, shortcode: str | None
-    ) -> str:
-        if not shortcode:
-            return image_url
-        if "s640x640" not in image_url and "stp=" not in image_url:
-            return image_url
-        probe_url = f"https://www.instagram.com/p/{shortcode}/media/?size=l"
-        try:
-            upgraded = await self.get_final_url(probe_url, headers=self.headers)
-            if "s640x640" not in upgraded and "stp=" not in upgraded:
-                return upgraded
-        except Exception:
-            pass
-
-        if display_url := await self._fetch_display_image(
-            f"https://www.instagram.com/p/{shortcode}/"
-        ):
-            return display_url
-
-        if json_url := await self._fetch_json_image(shortcode):
-            return json_url
-
-        return image_url
 
     async def _extract_info(self, url: str) -> dict[str, Any]:
         retries = 2
@@ -303,15 +151,6 @@ class InstagramParser(BaseParser):
                 return str(val)
         return fallback
 
-    @staticmethod
-    def _url_suffix(url: str, default: str) -> str:
-        suffix = Path(urlparse(url).path).suffix
-        return suffix if suffix else default
-
-    @staticmethod
-    def _image_variant(url: str) -> str:
-        return "crop" if ("s640x640" in url or "stp=" in url) else "full"
-
     @classmethod
     def _pick_formats(
         cls, info: dict[str, Any]
@@ -359,30 +198,6 @@ class InstagramParser(BaseParser):
 
         return video_fmt, audio_fmt
 
-    @staticmethod
-    def _pick_image_url(info: dict[str, Any]) -> str | None:
-        url = info.get("url")
-        if isinstance(url, str) and url.startswith("http"):
-            ext = info.get("ext")
-            if ext in ("jpg", "jpeg", "png", "webp"):
-                return InstagramParser._clean_url(url)
-        thumbnails = info.get("thumbnails") or []
-        best: dict[str, Any] | None = None
-        for thumb in thumbnails:
-            if not isinstance(thumb, dict):
-                continue
-            t_url = thumb.get("url")
-            if not isinstance(t_url, str) or not t_url.startswith("http"):
-                continue
-            if best is None:
-                best = thumb
-                continue
-            curr_area = (best.get("width") or 0) * (best.get("height") or 0)
-            new_area = (thumb.get("width") or 0) * (thumb.get("height") or 0)
-            if new_area > curr_area:
-                best = thumb
-        return InstagramParser._clean_url(best.get("url")) if best else None
-
     @handle(
         "instagram.com",
         r"https?://(?:www\.)?instagram\.com/(?:p|reel|reels|tv|share)/[A-Za-z0-9._?%&=+\-/#]+",
@@ -397,27 +212,7 @@ class InstagramParser(BaseParser):
         is_video_url = any(key in final_url for key in ("/reel/", "/reels/", "/tv/"))
         shortcode = self._extract_shortcode(final_url) or self._extract_shortcode(url)
         base_prefix = f"ig_{shortcode}" if shortcode else "ig"
-        try:
-            info = await self._extract_info(final_url)
-        except ParseException:
-            og = await self._fetch_og_meta(final_url)
-            if og_image := og.get("image"):
-                image_name = None
-                if shortcode:
-                    variant = self._image_variant(og_image)
-                    image_name = f"{base_prefix}_{variant}{self._url_suffix(og_image, '.jpg')}"
-                image_task = self.downloader.download_img(
-                    og_image,
-                    img_name=image_name,
-                    ext_headers=self.headers,
-                    proxy=self.proxy,
-                )
-                return self.result(
-                    title=og.get("title") or None,
-                    contents=[ImageContent(image_task)],
-                    url=final_url,
-                )
-            raise
+        info = await self._extract_info(final_url)
         entries = self._iter_entries(info)
         single_entry = len(entries) == 1
 
@@ -426,27 +221,15 @@ class InstagramParser(BaseParser):
         fallback_video_tried = False
         for idx, entry in enumerate(entries):
             entry_id = self._entry_identity(entry, str(idx))
-            entry_shortcode = entry.get("shortcode")
             base_name = f"{base_prefix}_{entry_id}"
             video_fmt, audio_fmt = self._pick_formats(entry)
             video_url = self._format_url(video_fmt) if video_fmt else None
             audio_url = self._format_url(audio_fmt) if audio_fmt else None
-            image_url = None if video_url else self._pick_image_url(entry)
-            thumbnail = entry.get("thumbnail")
             duration = float(entry.get("duration") or 0)
-            if not video_url and not image_url and not (is_video_url and thumbnail):
+            if not video_url:
                 continue
             if video_url:
                 cover_task = None
-                if thumbnail:
-                    cover_variant = self._image_variant(thumbnail)
-                    cover_name = f"{base_name}_cover_{cover_variant}{self._url_suffix(thumbnail, '.jpg')}"
-                    cover_task = self.downloader.download_img(
-                        thumbnail,
-                        img_name=cover_name,
-                        ext_headers=self.headers,
-                        proxy=self.proxy,
-                    )
                 if audio_url:
                     output_path = self.downloader.cache_dir / f"{base_name}_av.mp4"
                     if output_path.exists():
@@ -480,43 +263,6 @@ class InstagramParser(BaseParser):
                         proxy=self.proxy,
                     )
                     contents.append(VideoContent(video_task, cover_task, duration))
-            elif image_url or (is_video_url and thumbnail):
-                cover_task = None
-                if thumbnail:
-                    cover_name = f"{base_name}_cover{self._url_suffix(thumbnail, '.jpg')}"
-                    cover_task = self.downloader.download_img(
-                        thumbnail,
-                        img_name=cover_name,
-                        ext_headers=self.headers,
-                        proxy=self.proxy,
-                    )
-                if is_video_url and not fallback_video_tried:
-                    fallback_video_tried = True
-                    try:
-                        video_task = await self._download_with_ytdlp(
-                            final_url, f"{base_name}_ydlp.mp4"
-                        )
-                        contents.append(VideoContent(video_task, cover_task, duration))
-                        if meta_entry is None:
-                            meta_entry = entry
-                        continue
-                    except ParseException:
-                        pass
-                if image_url:
-                    image_url = await self._upgrade_image_url(
-                        image_url, entry_shortcode or shortcode
-                    )
-                    variant = self._image_variant(image_url)
-                    image_name = f"{base_name}_{variant}{self._url_suffix(image_url, '.jpg')}"
-                    image_task = self.downloader.download_img(
-                        image_url,
-                        img_name=image_name,
-                        ext_headers=self.headers,
-                        proxy=self.proxy,
-                    )
-                    contents.append(ImageContent(image_task))
-                elif thumbnail:
-                    contents.append(ImageContent(cover_task))
             if meta_entry is None:
                 meta_entry = entry
 
@@ -525,38 +271,14 @@ class InstagramParser(BaseParser):
             fallback_url = meta.get("webpage_url") or final_url
             if is_video_url and not fallback_video_tried:
                 try:
-                    thumbnail = meta.get("thumbnail")
                     duration = float(meta.get("duration") or 0)
-                    cover_task = None
-                    if thumbnail:
-                        cover_variant = self._image_variant(thumbnail)
-                        cover_name = f"{base_prefix}_cover_{cover_variant}{self._url_suffix(thumbnail, '.jpg')}"
-                        cover_task = self.downloader.download_img(
-                            thumbnail,
-                            img_name=cover_name,
-                            ext_headers=self.headers,
-                            proxy=self.proxy,
-                        )
                     if isinstance(fallback_url, str) and fallback_url:
                         video_task = await self._download_with_ytdlp(
                             fallback_url, f"{base_prefix}_ydlp.mp4"
                         )
-                        contents.append(VideoContent(video_task, cover_task, duration))
+                        contents.append(VideoContent(video_task, None, duration))
                 except ParseException:
                     pass
-            if not contents:
-                image_url = self._pick_image_url(meta)
-                if isinstance(image_url, str) and image_url:
-                    image_url = await self._upgrade_image_url(image_url, shortcode)
-                    variant = self._image_variant(image_url)
-                    image_name = f"{base_prefix}_{variant}{self._url_suffix(image_url, '.jpg')}"
-                    image_task = self.downloader.download_img(
-                        image_url,
-                        img_name=image_name,
-                        ext_headers=self.headers,
-                        proxy=self.proxy,
-                    )
-                    contents.append(ImageContent(image_task))
             if not contents:
                 raise ParseException("未找到可下载的视频")
         author_name = None
