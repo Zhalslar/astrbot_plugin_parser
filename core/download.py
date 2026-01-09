@@ -377,10 +377,13 @@ class Downloader:
             opts["proxy"] = self.proxy
         if cookiefile and cookiefile.is_file():
             opts["cookiefile"] = str(cookiefile)
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            raw = await asyncio.to_thread(ydl.extract_info, url, download=False)
-            if not raw:
-                raise ParseException("获取视频信息失败")
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                raw = await asyncio.to_thread(ydl.extract_info, url, download=False)
+                if not raw:
+                    raise ParseException("获取视频信息失败")
+        except DownloadError as exc:
+            raise ParseException(str(exc)) from exc
         if isinstance(raw, dict):
             duration = raw.get("duration")
             if isinstance(duration, float):
@@ -411,7 +414,10 @@ class Downloader:
         ytdlp_format: str | None = None,
         reencode_h264: bool = False,
     ) -> Path:
-        info = await self.ytdlp_extract_info(url, cookiefile)
+        try:
+            info = await self.ytdlp_extract_info(url, cookiefile)
+        except ParseException as exc:
+            raise DownloadException(str(exc)) from exc
         if info.duration > self.max_duration:
             raise DurationLimitException
 

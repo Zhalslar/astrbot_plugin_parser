@@ -177,6 +177,17 @@ class InstagramParser(BaseParser):
         )
         if self._is_video_entry(entry):
             if prefer_ytdlp:
+                video_url = self._extract_video_url(entry)
+                if video_url:
+                    contents.append(
+                        self.create_video_content(
+                            video_url,
+                            cover_url=entry.get("thumbnail"),
+                            duration=duration_value,
+                            ext_headers=ext_headers,
+                        )
+                    )
+                    return contents
                 entry_url = self._entry_webpage_url(entry, page_url)
                 contents.append(
                     self._create_ytdlp_video_content(
