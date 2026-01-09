@@ -195,12 +195,14 @@ class ParserPlugin(Star):
 
         # 基于资源ID防抖
         resource_id = parse_res.get_resource_id()
-        if self.debouncer.hit_resource(umo, resource_id):
+        if self.debouncer.is_resource_hit(umo, resource_id):
             logger.warning(f"[资源防抖] 资源 {resource_id} 在防抖时间内，跳过发送")
             return
 
         # 发送
-        await self.sender.send_parse_result(event, parse_res)
+        sent = await self.sender.send_parse_result(event, parse_res)
+        if sent:
+            self.debouncer.mark_resource(umo, resource_id)
 
     @filter.command("开启解析")
     async def open_parser(self, event: AstrMessageEvent):

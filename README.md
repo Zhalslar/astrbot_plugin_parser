@@ -56,6 +56,8 @@ _✨ 链接解析器 ✨_
 
 请在astrbot的插件配置面板查看并修改
 
+Instagram 需要登录 Cookies 时，可使用 Chrome 扩展 [Get cookies.txt locally](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) 导出并粘贴到 `ig_ck`。
+
 ## 🎉 指令
 
 |   指令   |         权限          |        说明        |

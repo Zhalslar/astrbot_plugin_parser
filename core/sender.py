@@ -99,7 +99,7 @@ class MessageSender:
         event: AstrMessageEvent,
         result: ParseResult,
         plan: dict,
-    ):
+    ) -> bool:
         """
         发送预览卡片（独立消息）
 
@@ -109,10 +109,12 @@ class MessageSender:
         - 卡片作为“预览”，不与正文混合
         """
         if not plan["preview_card"]:
-            return
+            return False
 
         if image_path := await self.renderer.render_card(result):
             await event.send(event.chain_result([Image(str(image_path))]))
+            return True
+        return False
 
 
     async def _build_segments(
@@ -212,7 +214,7 @@ class MessageSender:
         self,
         event: AstrMessageEvent,
         result: ParseResult,
-    ):
+    ) -> bool:
         """
         发送解析结果的统一入口
 
@@ -225,10 +227,12 @@ class MessageSender:
         """
         plan = self._build_send_plan(result)
 
-        await self._send_preview_card(event, result, plan)
+        preview_sent = await self._send_preview_card(event, result, plan)
 
         segs = await self._build_segments(result, plan)
+        sent_media = any(not isinstance(seg, Plain) for seg in segs)
         segs = self._merge_segments_if_needed(event, segs, plan["force_merge"])
 
         if segs:
             await event.send(event.chain_result(segs))
+        return sent_media or preview_sent

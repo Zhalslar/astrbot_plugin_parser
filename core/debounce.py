@@ -21,20 +21,35 @@ class Debouncer:
 
         now = time.time()
         bucket = self._cache.setdefault(session, {})
+        self._cleanup(bucket, now)
 
-        # 1. 清理过期
+        if key in bucket:
+            return True
+
+        bucket[key] = now
+        return False
+
+    def _cleanup(self, bucket: dict[str, float], now: float) -> None:
         expire = now - self.interval
         for k, ts in list(bucket.items()):
             if ts < expire:
                 bucket.pop(k, None)
 
-        # 2. 命中判断
-        if key in bucket:
-            return True
+    def _check(self, session: str, key: str) -> bool:
+        if self.interval <= 0:
+            return False
+        now = time.time()
+        bucket = self._cache.setdefault(session, {})
+        self._cleanup(bucket, now)
+        return key in bucket
 
-        # 3. 记录
+    def _mark(self, session: str, key: str) -> None:
+        if self.interval <= 0:
+            return
+        now = time.time()
+        bucket = self._cache.setdefault(session, {})
+        self._cleanup(bucket, now)
         bucket[key] = now
-        return False
 
     def hit_link(self, session: str, link: str) -> bool:
         """基于 link 的防抖"""
@@ -43,3 +58,11 @@ class Debouncer:
     def hit_resource(self, session: str, resource_id: str) -> bool:
         """基于资源 ID 的防抖"""
         return self._hit(session, f"res:{resource_id}")
+
+    def is_resource_hit(self, session: str, resource_id: str) -> bool:
+        """检查资源 ID 是否命中防抖（不记录）"""
+        return self._check(session, f"res:{resource_id}")
+
+    def mark_resource(self, session: str, resource_id: str) -> None:
+        """记录资源 ID 防抖"""
+        self._mark(session, f"res:{resource_id}")
