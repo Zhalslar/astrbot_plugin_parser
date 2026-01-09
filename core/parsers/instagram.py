@@ -212,7 +212,10 @@ class InstagramParser(BaseParser):
         video_task = self.downloader.download_video(
             url,
             use_ytdlp=True,
-            ytdlp_format="bestvideo[height<=720]+bestaudio/best[height<=720]/best",
+            ytdlp_format=(
+                "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/"
+                "best[height<=720][ext=mp4]/best[ext=mp4]"
+            ),
             cookiefile=self.ig_cookies_file,
             proxy=self.proxy,
         )

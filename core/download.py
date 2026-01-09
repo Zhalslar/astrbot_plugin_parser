@@ -404,7 +404,8 @@ class Downloader:
         if info.duration > self.max_duration:
             raise DurationLimitException
 
-        video_path = self.cache_dir / generate_file_name(url, ".mp4")
+        cache_key = url if not ytdlp_format else f"{url}|{ytdlp_format}"
+        video_path = self.cache_dir / generate_file_name(cache_key, ".mp4")
         if video_path.exists():
             return video_path
 
