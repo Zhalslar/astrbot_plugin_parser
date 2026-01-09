@@ -34,8 +34,9 @@ class InstagramParser(BaseParser):
         cookie_file = self.data_dir / "ig_cookies.txt"
         cookie_file.parent.mkdir(parents=True, exist_ok=True)
 
-        if self._looks_like_netscape(raw_cookies):
-            cookie_file.write_text(raw_cookies.rstrip() + "\n")
+        normalized = self._normalize_netscape(raw_cookies)
+        if normalized:
+            cookie_file.write_text(normalized)
         else:
             cookies = raw_cookies.replace("\n", "").replace("\r", "").strip()
             if not cookies:
@@ -47,15 +48,38 @@ class InstagramParser(BaseParser):
         self.ig_cookies_file = cookie_file
 
     @staticmethod
-    def _looks_like_netscape(raw_cookies: str) -> bool:
+    def _normalize_netscape(raw_cookies: str) -> str | None:
+        lines: list[str] = []
         for line in raw_cookies.splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            parts = line.split("\t")
-            if len(parts) >= 7:
-                return True
-        return False
+            parts = line.split()
+            if len(parts) < 7:
+                continue
+            domain, include_subdomains, path, secure, expires, name = parts[:6]
+            value = " ".join(parts[6:])
+            lines.append(
+                "\t".join(
+                    [
+                        domain,
+                        include_subdomains,
+                        path,
+                        secure,
+                        expires,
+                        name,
+                        value,
+                    ]
+                )
+            )
+        if not lines:
+            return None
+        header = (
+            "# Netscape HTTP Cookie File\n"
+            "# https://curl.haxx.se/rfc/cookie_spec.html\n"
+            "# This is a generated file! Do not edit.\n\n"
+        )
+        return header + "\n".join(lines) + "\n"
 
     @handle(
         "instagram.com",
