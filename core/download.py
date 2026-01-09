@@ -369,6 +369,13 @@ class Downloader:
             raw = await asyncio.to_thread(ydl.extract_info, url, download=False)
             if not raw:
                 raise ParseException("获取视频信息失败")
+        if isinstance(raw, dict):
+            duration = raw.get("duration")
+            if isinstance(duration, float):
+                raw["duration"] = int(duration)
+            timestamp = raw.get("timestamp")
+            if isinstance(timestamp, float):
+                raw["timestamp"] = int(timestamp)
         info = convert(raw, VideoInfo)
         self.info_cache[url] = info
         return info
