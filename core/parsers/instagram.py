@@ -382,7 +382,7 @@ class InstagramParser(BaseParser):
                         pass
                 if image_url:
                     image_url = await self._upgrade_image_url(
-                        image_url, entry_shortcode
+                        image_url, entry_shortcode or shortcode
                     )
                     image_name = f"{base_name}{self._url_suffix(image_url, '.jpg')}"
                     image_task = self.downloader.download_img(
