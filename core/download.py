@@ -376,6 +376,18 @@ class Downloader:
             timestamp = raw.get("timestamp")
             if isinstance(timestamp, float):
                 raw["timestamp"] = int(timestamp)
+            uploader = raw.get("uploader")
+            uploader_id = raw.get("uploader_id")
+            channel = raw.get("channel") or uploader or uploader_id or ""
+            channel_id = raw.get("channel_id") or uploader_id or ""
+            raw.setdefault("title", "")
+            raw.setdefault("channel", channel)
+            raw.setdefault("uploader", uploader or "")
+            raw.setdefault("duration", 0)
+            raw.setdefault("timestamp", 0)
+            raw.setdefault("thumbnail", "")
+            raw.setdefault("description", "")
+            raw.setdefault("channel_id", channel_id)
         info = convert(raw, VideoInfo)
         self.info_cache[url] = info
         return info
