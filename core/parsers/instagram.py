@@ -102,7 +102,7 @@ class InstagramParser(BaseParser):
             return None
 
         ext_headers = {**self.headers, "Referer": "https://www.instagram.com/"}
-        contents = self._extract_ytdlp_contents(info, ext_headers)
+        contents = self._extract_ytdlp_contents(info, ext_headers, page_url)
         if not contents:
             return None
 
@@ -147,41 +147,106 @@ class InstagramParser(BaseParser):
         return None
 
     def _extract_ytdlp_contents(
-        self, info: dict[str, Any], ext_headers: dict[str, str]
+        self, info: dict[str, Any], ext_headers: dict[str, str], page_url: str
     ) -> list[Any]:
         contents: list[Any] = []
         entries = info.get("entries")
         if isinstance(entries, list) and entries:
+            prefer_ytdlp = len(entries) == 1
             for entry in entries:
                 if isinstance(entry, dict):
-                    contents.extend(self._entry_to_contents(entry, ext_headers))
+                    contents.extend(
+                        self._entry_to_contents(
+                            entry, ext_headers, page_url, prefer_ytdlp
+                        )
+                    )
             return contents
-        return self._entry_to_contents(info, ext_headers)
+        return self._entry_to_contents(info, ext_headers, page_url, True)
 
     def _entry_to_contents(
-        self, entry: dict[str, Any], ext_headers: dict[str, str]
+        self,
+        entry: dict[str, Any],
+        ext_headers: dict[str, str],
+        page_url: str,
+        prefer_ytdlp: bool,
     ) -> list[Any]:
         contents: list[Any] = []
-        video_url = self._extract_video_url(entry)
         duration = entry.get("duration")
         duration_value = (
             float(duration) if isinstance(duration, (int, float)) else 0.0
         )
-        if video_url:
-            contents.append(
-                self.create_video_content(
-                    video_url,
-                    cover_url=entry.get("thumbnail"),
-                    duration=duration_value,
-                    ext_headers=ext_headers,
+        if self._is_video_entry(entry):
+            if prefer_ytdlp:
+                entry_url = self._entry_webpage_url(entry, page_url)
+                contents.append(
+                    self._create_ytdlp_video_content(
+                        entry_url, entry, duration_value, ext_headers
+                    )
                 )
-            )
-            return contents
+                return contents
+
+            video_url = self._extract_video_url(entry)
+            if video_url:
+                contents.append(
+                    self.create_video_content(
+                        video_url,
+                        cover_url=entry.get("thumbnail"),
+                        duration=duration_value,
+                        ext_headers=ext_headers,
+                    )
+                )
+                return contents
 
         image_url = self._extract_image_url(entry)
         if image_url:
             contents.extend(self.create_image_contents([image_url], ext_headers))
         return contents
+
+    def _create_ytdlp_video_content(
+        self,
+        url: str,
+        entry: dict[str, Any],
+        duration_value: float,
+        ext_headers: dict[str, str],
+    ):
+        video_task = self.downloader.download_video(
+            url,
+            use_ytdlp=True,
+            cookiefile=self.ig_cookies_file,
+            proxy=self.proxy,
+        )
+        return self.create_video_content(
+            video_task,
+            cover_url=entry.get("thumbnail"),
+            duration=duration_value,
+            ext_headers=ext_headers,
+        )
+
+    @staticmethod
+    def _entry_webpage_url(entry: dict[str, Any], fallback: str) -> str:
+        url = entry.get("webpage_url") or entry.get("original_url")
+        if isinstance(url, str) and url:
+            return url
+        return fallback
+
+    def _is_video_entry(self, entry: dict[str, Any]) -> bool:
+        url = entry.get("url")
+        if isinstance(url, str) and url:
+            ext = entry.get("ext")
+            mime_type = entry.get("mime_type")
+            vcodec = entry.get("vcodec")
+            if vcodec not in ("none", None):
+                return True
+            if isinstance(ext, str) and ext.lower() in {"mp4", "m4v", "webm"}:
+                return True
+            if isinstance(mime_type, str) and mime_type.startswith("video/"):
+                return True
+            if ".mp4" in url or ".m4v" in url or ".webm" in url:
+                return True
+        formats = entry.get("formats")
+        if isinstance(formats, list):
+            return self._best_video_format_url(formats) is not None
+        return False
 
     @staticmethod
     def _extract_image_url(entry: dict[str, Any]) -> str | None:
