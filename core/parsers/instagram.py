@@ -263,7 +263,7 @@ class InstagramParser(BaseParser):
                         ext_headers=self.headers,
                         proxy=self.proxy,
                     )
-                if audio_url and video_fmt and not self._has_audio(video_fmt):
+                if audio_url:
                     output_path = self.downloader.cache_dir / generate_file_name(
                         video_url, ".mp4"
                     )
