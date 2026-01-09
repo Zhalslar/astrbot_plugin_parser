@@ -1,5 +1,6 @@
 import asyncio
 import html
+import json
 import re
 from pathlib import Path
 from typing import Any, ClassVar
@@ -60,6 +61,46 @@ class InstagramParser(BaseParser):
             "title": _match("og:title") or "",
         }
 
+    async def _fetch_display_image(self, url: str) -> str | None:
+        async with self.client.get(
+            url, headers=self.headers, allow_redirects=True, proxy=self.proxy
+        ) as resp:
+            if resp.status >= 400:
+                return None
+            html_text = await resp.text()
+
+        def _json_unescape(value: str) -> str:
+            try:
+                return json.loads(f'"{value}"')
+            except json.JSONDecodeError:
+                return value.replace("\\/", "/").replace("\\u0026", "&")
+
+        best_url = None
+        best_area = 0
+        resource_patterns = [
+            r'"src":"([^"]+)","config_width":(\d+),"config_height":(\d+)"',
+            r'"config_width":(\d+),"config_height":(\d+),"src":"([^"]+)"',
+        ]
+        for pattern in resource_patterns:
+            for match in re.finditer(pattern, html_text):
+                if len(match.groups()) == 3:
+                    if pattern.startswith('"src"'):
+                        src, width, height = match.group(1), match.group(2), match.group(3)
+                    else:
+                        width, height, src = match.group(1), match.group(2), match.group(3)
+                    area = int(width) * int(height)
+                    if area > best_area:
+                        best_area = area
+                        best_url = _json_unescape(src)
+
+        if best_url:
+            return self._clean_url(best_url)
+
+        if match := re.search(r'"display_url":"([^"]+)"', html_text):
+            return self._clean_url(_json_unescape(match.group(1)))
+
+        return None
+
     async def _upgrade_image_url(
         self, image_url: str, shortcode: str | None
     ) -> str:
@@ -69,9 +110,18 @@ class InstagramParser(BaseParser):
             return image_url
         probe_url = f"https://www.instagram.com/p/{shortcode}/media/?size=l"
         try:
-            return await self.get_final_url(probe_url, headers=self.headers)
+            upgraded = await self.get_final_url(probe_url, headers=self.headers)
+            if "s640x640" not in upgraded and "stp=" not in upgraded:
+                return upgraded
         except Exception:
-            return image_url
+            pass
+
+        if display_url := await self._fetch_display_image(
+            f"https://www.instagram.com/p/{shortcode}/"
+        ):
+            return display_url
+
+        return image_url
 
     async def _extract_info(self, url: str) -> dict[str, Any]:
         retries = 2
