@@ -242,6 +242,7 @@ class InstagramParser(BaseParser):
                 )
             raise
         entries = self._iter_entries(info)
+        single_entry = len(entries) == 1
 
         contents = []
         meta_entry: dict[str, Any] | None = None
@@ -278,6 +279,16 @@ class InstagramParser(BaseParser):
                             proxy=self.proxy,
                         )
                     contents.append(VideoContent(video_task, cover_task, duration))
+                elif is_video_url and single_entry and not fallback_video_tried:
+                    fallback_video_tried = True
+                    try:
+                        video_task = await self._download_with_ytdlp(final_url)
+                        contents.append(VideoContent(video_task, cover_task, duration))
+                        if meta_entry is None:
+                            meta_entry = entry
+                        continue
+                    except ParseException:
+                        pass
                 else:
                     video_task = self.downloader.download_video(
                         video_url,
