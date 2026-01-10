@@ -1,8 +1,7 @@
 """Parser 基类定义"""
 
-import asyncio
 from abc import ABC
-from asyncio import Task
+from asyncio import Task, TimeoutError, sleep
 from collections.abc import Callable, Coroutine
 from pathlib import Path
 from re import Match, Pattern, compile
@@ -192,9 +191,9 @@ class BaseParser:
                             f"redirect check {resp.status} {resp.reason}"
                         )
                     return resp.headers.get("Location", url)
-            except (ClientError, asyncio.TimeoutError) as exc:
+            except (ClientError, TimeoutError) as exc:
                 if attempt < retries:
-                    await asyncio.sleep(1 + attempt)
+                    await sleep(1 + attempt)
                     continue
                 raise
 
@@ -214,9 +213,9 @@ class BaseParser:
                     if resp.status >= 400:
                         raise ClientError(f"final url check {resp.status} {resp.reason}")
                     return str(resp.url)
-            except (ClientError, asyncio.TimeoutError) as exc:
+            except (ClientError, TimeoutError) as exc:
                 if attempt < retries:
-                    await asyncio.sleep(1 + attempt)
+                    await sleep(1 + attempt)
                     continue
                 raise
 

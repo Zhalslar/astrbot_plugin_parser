@@ -1,5 +1,4 @@
-import asyncio
-from asyncio import Task, create_task
+from asyncio import Task, TimeoutError, create_task, gather, sleep, to_thread
 from collections.abc import Callable, Coroutine
 from functools import wraps
 from pathlib import Path
@@ -161,10 +160,10 @@ class Downloader:
             except (ZeroSizeException, SizeLimitException):
                 await safe_unlink(file_path)
                 raise
-            except (ClientError, asyncio.TimeoutError) as exc:
+            except (ClientError, TimeoutError) as exc:
                 await safe_unlink(file_path)
                 if attempt < retries:
-                    await asyncio.sleep(1 + attempt)
+                    await sleep(1 + attempt)
                     continue
                 logger.exception(f"下载失败 | url: {url}, file_path: {file_path}")
                 raise DownloadException("媒体下载失败") from exc
@@ -332,7 +331,7 @@ class Downloader:
         Returns:
             list[Path]: image file paths
         """
-        paths_or_errs = await asyncio.gather(
+        paths_or_errs = await gather(
             *[
                 self.download_img(url, ext_headers=ext_headers, proxy=proxy)
                 for url in urls
@@ -363,7 +362,7 @@ class Downloader:
         Returns:
             Path: merged file path
         """
-        v_path, a_path = await asyncio.gather(
+        v_path, a_path = await gather(
             self.download_video(v_url, ext_headers=ext_headers, proxy=proxy),
             self.download_audio(a_url, ext_headers=ext_headers, proxy=proxy),
         )
@@ -388,7 +387,7 @@ class Downloader:
         if cookiefile and cookiefile.is_file():
             opts["cookiefile"] = str(cookiefile)
         with yt_dlp.YoutubeDL(opts) as ydl:
-            raw = await asyncio.to_thread(ydl.extract_info, url, download=False)
+            raw = await to_thread(ydl.extract_info, url, download=False)
             if not raw:
                 raise ParseException("获取视频信息失败")
         info = convert(raw, VideoInfo)
@@ -422,7 +421,7 @@ class Downloader:
             opts["cookiefile"] = str(cookiefile)
 
         with yt_dlp.YoutubeDL(opts) as ydl:
-            await asyncio.to_thread(ydl.download, [url])
+            await to_thread(ydl.download, [url])
         return video_path
 
     async def _ytdlp_download_audio(self, url: str, cookiefile: Path | None) -> Path:
@@ -449,7 +448,7 @@ class Downloader:
             opts["cookiefile"] = str(cookiefile)
 
         with yt_dlp.YoutubeDL(opts) as ydl:
-            await asyncio.to_thread(ydl.download, [url])
+            await to_thread(ydl.download, [url])
         return audio_path
 
     async def close(self):
