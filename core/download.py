@@ -381,6 +381,7 @@ class Downloader:
             "skip_download": True,
             "force_generic_extractor": True,
             "cookiefile": None,
+            "http_headers": self.headers,
         }
         if self.proxy:
             opts["proxy"] = self.proxy
@@ -409,11 +410,12 @@ class Downloader:
             "outtmpl": str(video_path),
             "merge_output_format": "mp4",
             # "format": f"bv[filesize<={info.duration // 10 + 10}M]+ba/b[filesize<={info.duration // 8 + 10}M]",
-            "format": "best[height<=720]/bestvideo[height<=720]+bestaudio/best",
+            "format": "bv*[height<=720]+ba/b[height<=720]",
             "postprocessors": [
                 {"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}
             ],
             "cookiefile": None,
+            "http_headers": self.headers,
         }
         if self.proxy:
             opts["proxy"] = self.proxy
@@ -441,6 +443,7 @@ class Downloader:
                 }
             ],
             "cookiefile": None,
+            "http_headers": self.headers,
         }
         if self.proxy:
             opts["proxy"] = self.proxy
