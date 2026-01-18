@@ -135,7 +135,7 @@ class ParserPlugin(Star):
         umo = event.unified_msg_origin
 
         # 禁用会话
-        if umo in self.cfg.disabled_sessions:
+        if self.cfg.enabled_sessions and umo not in self.cfg.enabled_sessions:
             return
 
         # 消息链
@@ -210,23 +210,25 @@ class ParserPlugin(Star):
         # 发送
         await self.sender.send_parse_result(event, parse_res)
 
+    @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("开启解析")
     async def open_parser(self, event: AstrMessageEvent):
         """开启当前会话的解析"""
         umo = event.unified_msg_origin
-        if umo in self.cfg.disabled_sessions:
-            self.cfg.disabled_sessions.remove(umo)
+        if umo not in self.cfg.enabled_sessions:
+            self.cfg.enabled_sessions.append(umo)
             self.cfg.save()
             yield event.plain_result("解析已开启")
         else:
             yield event.plain_result("解析已开启，无需重复开启")
 
+    @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("关闭解析")
     async def close_parser(self, event: AstrMessageEvent):
         """关闭当前会话的解析"""
         umo = event.unified_msg_origin
-        if umo not in self.cfg.disabled_sessions:
-            self.cfg.disabled_sessions.append(umo)
+        if umo in self.cfg.enabled_sessions:
+            self.cfg.enabled_sessions.remove(umo)
             self.cfg.save()
             yield event.plain_result("解析已关闭")
         else:

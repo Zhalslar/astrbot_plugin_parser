@@ -120,7 +120,7 @@ class PluginConfig(TypedConfigFacade):
     插件配置
     """
 
-    disabled_sessions: list[str]
+    enabled_sessions: list[str]
     arbiter: bool
     debounce_interval: int
 
