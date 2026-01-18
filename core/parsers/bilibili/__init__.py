@@ -52,7 +52,7 @@ class BilibiliParser(BaseParser):
         self.codecs = getattr(
             VideoCodecs, self.mycfg.video_codecs.upper(), VideoCodecs.AVC
         )
-        self.bili_ck = self.mycfg.cookies
+        self.cookies = self.mycfg.cookies
         self._cookies_file = self.cfg.data_dir / "bilibili_cookies.json"
 
     @handle("b23.tv", r"b23\.tv/[A-Za-z\d\._?%&+\-=/#]+")
@@ -539,11 +539,11 @@ class BilibiliParser(BaseParser):
 
     async def _init_credential(self):
         """初始化哔哩哔哩登录凭证"""
-        if not self.bili_ck:
+        if not self.cookies:
             self._load_credential()
             return
 
-        credential = Credential.from_cookies(ck2dict(self.bili_ck))
+        credential = Credential.from_cookies(ck2dict(self.cookies))
         if await credential.check_valid():
             logger.info(f"`parser_bili_ck` 有效, 保存到 {self._cookies_file}")
             self._credential = credential
