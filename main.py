@@ -134,8 +134,13 @@ class ParserPlugin(Star):
         """消息的统一入口"""
         umo = event.unified_msg_origin
 
-        # 禁用会话
-        if self.cfg.enabled_sessions and umo not in self.cfg.enabled_sessions:
+        # 非管理员，没唤醒，启用列表不为空时, 进行会话过滤
+        if (
+            not event.is_admin()
+            and not event.is_at_or_wake_command
+            and self.cfg.enabled_sessions
+            and umo not in self.cfg.enabled_sessions
+        ):
             return
 
         # 消息链
