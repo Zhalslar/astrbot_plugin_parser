@@ -677,7 +677,7 @@ class Renderer:
         )
 
         # 时间
-        time_text = result.formatted_datetime
+        time_text = result.formatted_datetime()
         time_lines = self._wrap_text(
             time_text,
             text_area_width,

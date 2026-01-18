@@ -167,7 +167,7 @@ class ParseResult:
     """转发的内容"""
     render_image: Path | None = None
     """渲染图片"""
-    _resource_id: str | None = field(default=None, init=False, repr=False)
+    _resource_id: str | None = field(init=False, repr=False)
     """资源 ID"""
     @property
     def header(self) -> str | None:
@@ -223,7 +223,7 @@ class ParseResult:
                 return await cont.get_cover_path()
         return None
 
-    @property
+
     def formatted_datetime(self, fmt: str = "%Y-%m-%d %H:%M:%S") -> str | None:
         """格式化时间戳"""
         return (
@@ -245,6 +245,9 @@ class ParseResult:
             f"repost: <<<<<<<{self.repost}>>>>>>, "
             f"render_image: {self.render_image.name if self.render_image else 'None'}"
         )
+
+    def __post_init__(self):
+        object.__setattr__(self, "_resource_id", None)
 
     def get_resource_id(self) -> str:
         """
