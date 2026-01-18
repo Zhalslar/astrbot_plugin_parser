@@ -68,7 +68,7 @@ class Downloader:
     def __init__(self, config: PluginConfig):
         self.cfg = config
         self.max_size = self.cfg.source_max_size
-        self.headers: dict[str, str] = COMMON_HEADER.copy()
+        self.default_headers: dict[str, str] = COMMON_HEADER.copy()
         # 视频信息缓存
         self.info_cache: LimitedSizeDict[str, VideoInfo] = LimitedSizeDict()
         # 用于流式下载的客户端
@@ -82,33 +82,17 @@ class Downloader:
         url: str,
         *,
         file_name: str | None = None,
-        ext_headers: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         proxy: str | None | object = ...,
     ) -> Path:
-        """download file by url with stream
-
-        Args:
-            url (str): url address
-            file_name (str | None): file name. Defaults to generate_file_name.
-            ext_headers (dict[str, str] | None): ext headers. Defaults to None.
-            proxy (str | None): proxy URL. Defaults to configured proxy. Use None to disable proxy.
-
-        Returns:
-            Path: file path
-
-        Raises:
-            httpx.HTTPError: When download fails
-        """
-
+        """流式下载"""
         if not file_name:
             file_name = generate_file_name(url)
         file_path = self.cfg.cache_dir / file_name
         # 如果文件存在，则直接返回
         if file_path.exists():
             return file_path
-
-        headers = {**self.headers, **(ext_headers or {})}
-
+        headers = headers or self.default_headers
         retries = self.cfg.download_retry_times
         for attempt in range(retries + 1):
             try:
@@ -189,34 +173,18 @@ class Downloader:
         url: str,
         *,
         video_name: str | None = None,
-        ext_headers: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         use_ytdlp: bool = False,
         cookiefile: Path | None = None,
-        proxy: str | None | object = ...,
+        proxy: str | None  = None,
     ) -> Path:
-        """download video file by url with stream
-
-        Args:
-            url (str): url address
-            video_name (str | None): video name. Defaults to get name by parse url.
-            ext_headers (dict[str, str] | None): ext headers. Defaults to None.
-            use_ytdlp (bool): use ytdlp to download video. Defaults to False.
-            cookiefile (Path | None): cookie file path. Defaults to None.
-            proxy (str | None): proxy URL. Defaults to configured proxy. Use None to disable proxy.
-
-        Returns:
-            Path: video file path
-
-        Raises:
-            httpx.HTTPError: When download fails
-        """
         if use_ytdlp:
-            return await self._ytdlp_download_video(url, cookiefile)
+            return await self._ytdlp_download_video(url, cookiefile, headers, proxy)
 
         if video_name is None:
             video_name = generate_file_name(url, ".mp4")
         return await self.streamd(
-            url, file_name=video_name, ext_headers=ext_headers, proxy=proxy
+            url, file_name=video_name, headers=headers, proxy=proxy
         )
 
     @auto_task
@@ -225,32 +193,18 @@ class Downloader:
         url: str,
         *,
         audio_name: str | None = None,
-        ext_headers: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         use_ytdlp: bool = False,
         cookiefile: Path | None = None,
-        proxy: str | None | object = ...,
+        proxy: str | None = None,
     ) -> Path:
-        """download audio file by url with stream
-
-        Args:
-            url (str): url address
-            audio_name (str | None ): audio name. Defaults to generate from url.
-            ext_headers (dict[str, str] | None): ext headers. Defaults to None.
-            proxy (str | None): proxy URL. Defaults to configured proxy. Use None to disable proxy.
-
-        Returns:
-            Path: audio file path
-
-        Raises:
-            httpx.HTTPError: When download fails
-        """
         if use_ytdlp:
-            return await self._ytdlp_download_audio(url, cookiefile)
+            return await self._ytdlp_download_audio(url, cookiefile, headers, proxy)
 
         if audio_name is None:
             audio_name = generate_file_name(url, ".mp3")
         return await self.streamd(
-            url, file_name=audio_name, ext_headers=ext_headers, proxy=proxy
+            url, file_name=audio_name, headers=headers, proxy=proxy
         )
 
     @auto_task
@@ -259,24 +213,13 @@ class Downloader:
         url: str,
         *,
         file_name: str | None = None,
-        ext_headers: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         proxy: str | None | object = ...,
     ) -> Path:
-        """download file by url with stream
-
-        Args:
-            url (str): url address
-            file_name (str | None): file name. Defaults to None.
-            ext_headers (dict[str, str] | None): ext headers. Defaults to None.
-            proxy (str | None): proxy URL. Defaults to configured proxy. Use None to disable proxy.
-
-        Returns:
-            Path: file path
-        """
         if file_name is None:
             file_name = generate_file_name(url, ".zip")
         return await self.streamd(
-            url, file_name=file_name, ext_headers=ext_headers, proxy=proxy
+            url, file_name=file_name, headers=headers, proxy=proxy
         )
 
     @auto_task
@@ -285,49 +228,25 @@ class Downloader:
         url: str,
         *,
         img_name: str | None = None,
-        ext_headers: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         proxy: str | None | object = ...,
     ) -> Path:
-        """download image file by url with stream
-
-        Args:
-            url (str): url
-            img_name (str | None): image name. Defaults to generate from url.
-            ext_headers (dict[str, str] | None): ext headers. Defaults to None.
-            proxy (str | None): proxy URL. Defaults to configured proxy. Use None to disable proxy.
-
-        Returns:
-            Path: image file path
-
-        Raises:
-            httpx.HTTPError: When download fails
-        """
         if img_name is None:
             img_name = generate_file_name(url, ".jpg")
         return await self.streamd(
-            url, file_name=img_name, ext_headers=ext_headers, proxy=proxy
+            url, file_name=img_name, headers=headers, proxy=proxy
         )
 
     async def download_imgs_without_raise(
         self,
         urls: list[str],
         *,
-        ext_headers: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         proxy: str | None | object = ...,
     ) -> list[Path]:
-        """download images without raise
-
-        Args:
-            urls (list[str]): urls
-            ext_headers (dict[str, str] | None): ext headers. Defaults to None.
-            proxy (str | None): proxy URL. Defaults to configured proxy. Use None to disable proxy.
-
-        Returns:
-            list[Path]: image file paths
-        """
         paths_or_errs = await gather(
             *[
-                self.download_img(url, ext_headers=ext_headers, proxy=proxy)
+                self.download_img(url, headers=headers, proxy=proxy)
                 for url in urls
             ],
             return_exceptions=True,
@@ -341,24 +260,15 @@ class Downloader:
         a_url: str,
         *,
         output_path: Path,
-        ext_headers: dict[str, str] | None = None,
-        proxy: str | None | object = ...,
+        headers: dict[str, str] | None = None,
+        proxy: str | None = None,
     ) -> Path:
-        """download video and audio file by url with stream and merge
-
-        Args:
-            v_url (str): video url
-            a_url (str): audio url
-            output_path (Path): output file path
-            ext_headers (dict[str, str] | None): ext headers. Defaults to None.
-            proxy (str | None): proxy URL. Defaults to configured proxy. Use None to disable proxy.
-
-        Returns:
-            Path: merged file path
+        """
+        download video and audio file by url with stream and merge
         """
         v_path, a_path = await gather(
-            self.download_video(v_url, ext_headers=ext_headers, proxy=proxy),
-            self.download_audio(a_url, ext_headers=ext_headers, proxy=proxy),
+            self.download_video(v_url, headers=headers, proxy=proxy),
+            self.download_audio(a_url, headers=headers, proxy=proxy),
         )
         await merge_av(v_path=v_path, a_path=a_path, output_path=output_path)
         return output_path
@@ -366,7 +276,11 @@ class Downloader:
     # region -------------------- 私有：yt-dlp --------------------
 
     async def ytdlp_extract_info(
-        self, url: str, cookiefile: Path | None = None, proxy: str | None = None
+        self,
+        url: str,
+        cookiefile: Path | None = None,
+        headers: dict[str, str] | None = None,
+        proxy: str | None = None,
     ) -> VideoInfo:
         if (info := self.info_cache.get(url)) is not None:
             return info
@@ -375,7 +289,7 @@ class Downloader:
             "skip_download": True,
             "force_generic_extractor": True,
             "cookiefile": None,
-            "http_headers": self.headers,
+            "http_headers": headers or self.default_headers,
         }
         if proxy:
             opts["proxy"] = proxy
@@ -390,9 +304,13 @@ class Downloader:
         return info
 
     async def _ytdlp_download_video(
-        self, url: str, cookiefile: Path | None = None, proxy: str | None = None
+        self,
+        url: str,
+        cookiefile: Path | None = None,
+        headers: dict[str, str] | None = None,
+        proxy: str | None = None,
     ) -> Path:
-        info = await self.ytdlp_extract_info(url, cookiefile, proxy)
+        info = await self.ytdlp_extract_info(url, cookiefile, headers, proxy)
         if info.duration > self.cfg.max_duration:
             raise DurationLimitException
 
@@ -409,7 +327,7 @@ class Downloader:
                 {"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}
             ],
             "cookiefile": None,
-            "http_headers": self.headers,
+            "http_headers": headers or self.default_headers,
         }
         if proxy:
             opts["proxy"] = proxy
@@ -421,7 +339,11 @@ class Downloader:
         return video_path
 
     async def _ytdlp_download_audio(
-        self, url: str, cookiefile: Path | None, proxy: str | None = None
+        self,
+        url: str,
+        cookiefile: Path | None,
+        headers: dict[str, str] | None = None,
+        proxy: str | None = None,
     ) -> Path:
         file_name = generate_file_name(url)
         audio_path = self.cfg.cache_dir / f"{file_name}.flac"
@@ -439,7 +361,7 @@ class Downloader:
                 }
             ],
             "cookiefile": None,
-            "http_headers": self.headers,
+            "http_headers": headers or self.default_headers,
         }
         if proxy:
             opts["proxy"] = proxy

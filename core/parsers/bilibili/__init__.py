@@ -37,6 +37,13 @@ class BilibiliParser(BaseParser):
     def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
         self.mycfg = config.parser.bilibili
+        self.headers.update(
+            {
+                "Referer": "https://www.bilibili.com/",
+                "Origin": "https://www.bilibili.com",
+            }
+        )
+
         self._credential: Credential | None = None
 
         self.video_quality = getattr(
@@ -45,7 +52,7 @@ class BilibiliParser(BaseParser):
         self.codecs = getattr(
             VideoCodecs, self.mycfg.video_codecs.upper(), VideoCodecs.AVC
         )
-        self.bili_ck = self.mycfg.cookies
+        self.cookies = self.mycfg.cookies
         self._cookies_file = self.cfg.data_dir / "bilibili_cookies.json"
 
     @handle("b23.tv", r"b23\.tv/[A-Za-z\d\._?%&+\-=/#]+")
@@ -56,7 +63,10 @@ class BilibiliParser(BaseParser):
         return await self.parse_with_redirect(url)
 
     @handle("BV", r"^(?P<bvid>BV[0-9a-zA-Z]{10})(?:\s)?(?P<page_num>\d{1,3})?$")
-    @handle("/BV", r"bilibili\.com(?:/video)?/(?P<bvid>BV[0-9a-zA-Z]{10})(?:\?p=(?P<page_num>\d{1,3}))?")
+    @handle(
+        "/BV",
+        r"bilibili\.com(?:/video)?/(?P<bvid>BV[0-9a-zA-Z]{10})(?:\?p=(?P<page_num>\d{1,3}))?",
+    )
     async def _parse_bv(self, searched: Match[str]):
         """解析视频信息"""
         bvid = str(searched.group("bvid"))
@@ -78,9 +88,11 @@ class BilibiliParser(BaseParser):
             url=a_url,
         )
 
-
     @handle("av", r"^av(?P<avid>\d{6,})(?:\s)?(?P<page_num>\d{1,3})?$")
-    @handle("/av", r"bilibili\.com(?:/video)?/av(?P<avid>\d{6,})(?:\?p=(?P<page_num>\d{1,3}))?")
+    @handle(
+        "/av",
+        r"bilibili\.com(?:/video)?/av(?P<avid>\d{6,})(?:\?p=(?P<page_num>\d{1,3}))?",
+    )
     async def _parse_av(self, searched: Match[str]):
         """解析视频信息"""
         avid = int(searched.group("avid"))
@@ -163,16 +175,25 @@ class BilibiliParser(BaseParser):
             output_path = self.cfg.cache_dir / f"{video_info.bvid}-{page_num}.mp4"
             if output_path.exists():
                 return output_path
-            v_url, a_url = await self.extract_download_urls(video=video, page_index=page_info.index)
+            v_url, a_url = await self.extract_download_urls(
+                video=video, page_index=page_info.index
+            )
             if page_info.duration > self.cfg.max_duration:
                 raise DurationLimitException
             if a_url is not None:
                 return await self.downloader.download_av_and_merge(
-                    v_url, a_url, output_path=output_path, ext_headers=self.headers, proxy=self.proxy
+                    v_url,
+                    a_url,
+                    output_path=output_path,
+                    headers=self.headers,
+                    proxy=self.proxy,
                 )
             else:
                 return await self.downloader.streamd(
-                    v_url, file_name=output_path.name, ext_headers=self.headers, proxy=self.proxy
+                    v_url,
+                    file_name=output_path.name,
+                    headers=self.headers,
+                    proxy=self.proxy,
                 )
 
         video_task = asyncio.create_task(download_video())
@@ -191,7 +212,6 @@ class BilibiliParser(BaseParser):
             contents=[video_content],
             extra={"info": ai_summary},
         )
-
 
     async def parse_dynamic(self, dynamic_id: int):
         """解析动态信息
@@ -214,7 +234,9 @@ class BilibiliParser(BaseParser):
         # 下载图片
         contents: list[MediaContent] = []
         for image_url in dynamic_info.image_urls:
-            img_task = self.downloader.download_img(image_url, ext_headers=self.headers, proxy=self.proxy)
+            img_task = self.downloader.download_img(
+                image_url, headers=self.headers, proxy=self.proxy
+            )
             contents.append(ImageContent(img_task))
 
         return self.result(
@@ -271,7 +293,11 @@ class BilibiliParser(BaseParser):
 
         for node in opus_data.gen_text_img():
             if isinstance(node, ImageNode):
-                contents.append(self.create_graphics_content(node.url, current_text.strip(), node.alt))
+                contents.append(
+                    self.create_graphics_content(
+                        node.url, current_text.strip(), node.alt
+                    )
+                )
                 current_text = ""
             elif isinstance(node, TextNode):
                 current_text += node.text
@@ -304,13 +330,15 @@ class BilibiliParser(BaseParser):
         contents: list[MediaContent] = []
         # 下载封面
         if cover := room_data.cover:
-            cover_task = self.downloader.download_img(cover, ext_headers=self.headers, proxy=self.proxy)
+            cover_task = self.downloader.download_img(
+                cover, headers=self.headers, proxy=self.proxy
+            )
             contents.append(ImageContent(cover_task))
 
         # 下载关键帧
         if keyframe := room_data.keyframe:
             keyframe_task = self.downloader.download_img(
-                keyframe, ext_headers=self.headers, proxy=self.proxy
+                keyframe, headers=self.headers, proxy=self.proxy
             )
             contents.append(ImageContent(keyframe_task))
 
@@ -349,7 +377,11 @@ class BilibiliParser(BaseParser):
         current_text = ""
         for child in article_info.gen_text_img():
             if isinstance(child, ImageNode):
-                contents.append(self.create_graphics_content(child.url, current_text.strip(), child.alt))
+                contents.append(
+                    self.create_graphics_content(
+                        child.url, current_text.strip(), child.alt
+                    )
+                )
                 current_text = ""
             elif isinstance(child, TextNode):
                 current_text += child.text
@@ -389,10 +421,15 @@ class BilibiliParser(BaseParser):
             title=favdata.title,
             timestamp=favdata.timestamp,
             author=self.create_author(favdata.info.upper.name, favdata.info.upper.face),
-            contents=[self.create_graphics_content(fav.cover, fav.desc) for fav in favdata.medias],
+            contents=[
+                self.create_graphics_content(fav.cover, fav.desc)
+                for fav in favdata.medias
+            ],
         )
 
-    async def _get_video(self, *, bvid: str | None = None, avid: int | None = None) -> Video:
+    async def _get_video(
+        self, *, bvid: str | None = None, avid: int | None = None
+    ) -> Video:
         """解析视频信息
 
         Args:
@@ -443,7 +480,9 @@ class BilibiliParser(BaseParser):
         video_stream = streams[0]
         if not isinstance(video_stream, VideoStreamDownloadURL):
             raise DownloadException("未找到可下载的视频流")
-        logger.debug(f"视频流质量: {video_stream.video_quality.name}, 编码: {video_stream.video_codecs}")
+        logger.debug(
+            f"视频流质量: {video_stream.video_quality.name}, 编码: {video_stream.video_codecs}"
+        )
 
         audio_stream = streams[1]
         if not isinstance(audio_stream, AudioStreamDownloadURL):
@@ -463,7 +502,9 @@ class BilibiliParser(BaseParser):
         if not self._cookies_file.exists():
             return
 
-        self._credential = Credential.from_cookies(json.loads(self._cookies_file.read_text()))
+        self._credential = Credential.from_cookies(
+            json.loads(self._cookies_file.read_text())
+        )
 
     async def login_with_qrcode(self) -> bytes:
         """通过二维码登录获取哔哩哔哩登录凭证"""
@@ -498,11 +539,11 @@ class BilibiliParser(BaseParser):
 
     async def _init_credential(self):
         """初始化哔哩哔哩登录凭证"""
-        if not self.bili_ck:
+        if not self.cookies:
             self._load_credential()
             return
 
-        credential = Credential.from_cookies(ck2dict(self.bili_ck))
+        credential = Credential.from_cookies(ck2dict(self.cookies))
         if await credential.check_valid():
             logger.info(f"`parser_bili_ck` 有效, 保存到 {self._cookies_file}")
             self._credential = credential
@@ -530,6 +571,8 @@ class BilibiliParser(BaseParser):
                 logger.info(f"哔哩哔哩凭证刷新成功, 保存到 {self._cookies_file}")
                 self._save_credential()
             else:
-                logger.warning("哔哩哔哩凭证刷新需要包含 `SESSDATA`, `ac_time_value` 项")
+                logger.warning(
+                    "哔哩哔哩凭证刷新需要包含 `SESSDATA`, `ac_time_value` 项"
+                )
 
         return self._credential

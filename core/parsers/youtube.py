@@ -20,7 +20,7 @@ class YouTubeParser(BaseParser):
         self.mycfg = config.parser.youtube
         if not self.mycfg:
             raise ValueError("YouTube Parser config not found")
-
+        self.headers.update({"Referer": "https://www.youtube.com/"})
         self.ytb_cookies_file = None
         if self.mycfg.cookies:
             self._set_cookies()
@@ -45,7 +45,7 @@ class YouTubeParser(BaseParser):
         url = searched.group(0)
 
         video_info = await self.downloader.ytdlp_extract_info(
-            url, cookiefile=self.ytb_cookies_file, proxy=self.proxy
+            url, cookiefile=self.ytb_cookies_file, headers=self.headers, proxy=self.proxy
         )
         author = await self._fetch_author_info(video_info.channel_id)
 
@@ -55,6 +55,7 @@ class YouTubeParser(BaseParser):
                 url,
                 use_ytdlp=True,
                 cookiefile=self.ytb_cookies_file,
+                headers=self.headers,
                 proxy=self.proxy,
             )
             contents.append(
@@ -82,7 +83,7 @@ class YouTubeParser(BaseParser):
         """获取油管的音频(需加ym前缀)"""
         url = searched.group("url")
         video_info = await self.downloader.ytdlp_extract_info(
-            url, self.ytb_cookies_file, proxy=self.proxy
+            url, self.ytb_cookies_file, headers=self.headers, proxy=self.proxy
         )
         author = await self._fetch_author_info(video_info.channel_id)
 
@@ -94,6 +95,7 @@ class YouTubeParser(BaseParser):
                 url,
                 use_ytdlp=True,
                 cookiefile=self.ytb_cookies_file,
+                headers=self.headers,
                 proxy=self.proxy,
             )
             contents.append(

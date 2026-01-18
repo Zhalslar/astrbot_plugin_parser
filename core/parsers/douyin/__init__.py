@@ -194,17 +194,17 @@ class DouyinParser(BaseParser):
         # 添加图片内容
         if image_urls := video_data.image_urls:
             logger.debug(f"[抖音] 检测到图文内容，图片数量: {len(image_urls)}")
-            contents.extend(self.create_image_contents(image_urls, ext_headers=self.ios_headers))
+            contents.extend(self.create_image_contents(image_urls, headers=self.ios_headers))
 
         # 添加视频内容
         elif video_url := video_data.video_url:
             cover_url = video_data.cover_url
             duration = video_data.video.duration if video_data.video else 0
             logger.debug(f"[抖音] 检测到视频内容，时长: {duration}秒")
-            contents.append(self.create_video_content(video_url, cover_url, duration, ext_headers=self.ios_headers))
+            contents.append(self.create_video_content(video_url, cover_url, duration, headers=self.ios_headers))
 
         # 构建作者
-        author = self.create_author(video_data.author.nickname, video_data.avatar_url, ext_headers=self.ios_headers)
+        author = self.create_author(video_data.author.nickname, video_data.avatar_url, headers=self.ios_headers)
 
         return self.result(
             title=video_data.desc,
@@ -246,15 +246,15 @@ class DouyinParser(BaseParser):
         # 添加图片内容
         if image_urls := slides_data.image_urls:
             logger.debug(f"[抖音] 检测到幻灯片图片，数量: {len(image_urls)}")
-            contents.extend(self.create_image_contents(image_urls, ext_headers=self.android_headers))
+            contents.extend(self.create_image_contents(image_urls, headers=self.android_headers))
 
         # 添加动态内容
         if dynamic_urls := slides_data.dynamic_urls:
             logger.debug(f"[抖音] 检测到幻灯片动态效果，数量: {len(dynamic_urls)}")
-            contents.extend(self.create_dynamic_contents(dynamic_urls, ext_headers=self.android_headers))
+            contents.extend(self.create_dynamic_contents(dynamic_urls, headers=self.android_headers))
 
         # 构建作者
-        author = self.create_author(slides_data.name, slides_data.avatar_url, ext_headers=self.android_headers)
+        author = self.create_author(slides_data.name, slides_data.avatar_url, headers=self.android_headers)
 
         return self.result(
             title=slides_data.desc,

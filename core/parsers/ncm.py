@@ -32,7 +32,6 @@ class NCMParser(BaseParser):
     @handle("music.163.com", r"music\.163\.com/#/song\?.*id=(?P<song_id>\d+)")
     async def _parse_song(self, searched: Match[str]):
         song_id = searched.group("song_id")
-        print(song_id)
         detail_url = (
             f"https://music.163.com/api/song/detail/?id={song_id}&ids=[{song_id}]"
         )

@@ -24,7 +24,7 @@ class TikTokParser(BaseParser):
             url = await self.get_redirect_url(url)
 
         # 获取视频信息
-        video_info = await self.downloader.ytdlp_extract_info(url, proxy=self.proxy)
+        video_info = await self.downloader.ytdlp_extract_info(url, headers=self.headers, proxy=self.proxy)
 
         # 下载封面和视频
         cover = self.downloader.download_img(video_info.thumbnail, proxy=self.proxy)

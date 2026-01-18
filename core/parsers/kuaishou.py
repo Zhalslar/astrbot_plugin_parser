@@ -64,15 +64,21 @@ class KuaiShouParser(BaseParser):
         # 添加视频内容
         if video_url := photo.video_url:
             contents.append(
-                self.create_video_content(video_url, photo.cover_url, photo.duration)
+                self.create_video_content(
+                    video_url, photo.cover_url, photo.duration, headers=self.ios_headers
+                )
             )
 
         # 添加图片内容
         if img_urls := photo.img_urls:
-            contents.extend(self.create_image_contents(img_urls))
+            contents.extend(
+                self.create_image_contents(img_urls, headers=self.ios_headers)
+            )
 
         # 构建作者
-        author = self.create_author(photo.name, photo.head_url)
+        author = self.create_author(
+            photo.name, photo.head_url, headers=self.ios_headers
+        )
 
         return self.result(
             title=photo.caption,

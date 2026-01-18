@@ -467,7 +467,7 @@ class InstagramParser(BaseParser):
                     image_task = self.downloader.download_img(
                         image_url,
                         img_name=image_name,
-                        ext_headers=self.headers,
+                        headers=self.headers,
                         proxy=self.proxy,
                     )
                     contents.append(ImageContent(image_task))
@@ -508,7 +508,7 @@ class InstagramParser(BaseParser):
                             video_url,
                             audio_url,
                             output_path=output_path,
-                            ext_headers=self.headers,
+                            headers=self.headers,
                             proxy=self.proxy,
                         )
                     contents.append(VideoContent(video_task, cover_task, duration))
@@ -525,7 +525,7 @@ class InstagramParser(BaseParser):
                                 v_url,
                                 a_url,
                                 output_path=output_path,
-                                ext_headers=self.headers,
+                                headers=self.headers,
                                 proxy=self.proxy,
                             )
                         contents.append(VideoContent(video_task, cover_task, duration))
@@ -571,7 +571,7 @@ class InstagramParser(BaseParser):
                     image_task = self.downloader.download_img(
                         image_url,
                         img_name=image_name,
-                        ext_headers=self.headers,
+                        headers=self.headers,
                         proxy=self.proxy,
                     )
                     contents.append(ImageContent(image_task))
