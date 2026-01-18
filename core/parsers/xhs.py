@@ -5,33 +5,36 @@ from typing import Any, ClassVar
 from msgspec import Struct, convert, field
 
 from astrbot.api import logger
-from astrbot.core.config.astrbot_config import AstrBotConfig
 
+from ..config import PluginConfig
 from ..download import Downloader
 from .base import BaseParser, ParseException, Platform, handle
 
 
-class XiaoHongShuParser(BaseParser):
+class XHSParser(BaseParser):
     # 平台信息
-    platform: ClassVar[Platform] = Platform(name="xiaohongshu", display_name="小红书")
+    platform: ClassVar[Platform] = Platform(name="xhs", display_name="小红书")
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
-        explore_headers = {
-            "accept": (
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
-                "image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
-            )
-        }
-        self.headers.update(explore_headers)
-        discovery_headers = {
-            "origin": "https://www.xiaohongshu.com",
-            "x-requested-with": "XMLHttpRequest",
-            "sec-fetch-site": "same-origin",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-dest": "empty",
-        }
-        self.ios_headers.update(discovery_headers)
+        self.mycfg = config.parser.xhs
+        self.headers.update(
+            {
+                "accept": (
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
+                    "image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+                )
+            }
+        )
+        self.ios_headers.update(
+            {
+                "origin": "https://www.xiaohongshu.com",
+                "x-requested-with": "XMLHttpRequest",
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty",
+            }
+        )
 
     @handle("xhslink.com", r"xhslink\.com/[A-Za-z0-9._?%&+=/#@-]*")
     async def _parse_short_link(self, searched: re.Match[str]):
@@ -65,7 +68,7 @@ class XiaoHongShuParser(BaseParser):
             return await self.parse_discovery(f"https://www.xiaohongshu.com/{route}")
 
     async def parse_explore(self, url: str, xhs_id: str):
-        async with self.client.get(url, headers=self.headers) as resp:
+        async with self.session.get(url, headers=self.headers) as resp:
             html = await resp.text()
             logger.debug(f"url: {resp.url} | status: {resp.status}")
 
@@ -133,7 +136,7 @@ class XiaoHongShuParser(BaseParser):
         )
 
     async def parse_discovery(self, url: str):
-        async with self.client.get(
+        async with self.session.get(
             url,
             headers=self.ios_headers,
             allow_redirects=True,

@@ -11,8 +11,8 @@ from msgspec import Struct, convert
 from tqdm.asyncio import tqdm
 
 from astrbot.api import logger
-from astrbot.core.config.astrbot_config import AstrBotConfig
 
+from .config import PluginConfig
 from .constants import COMMON_HEADER
 from .exception import (
     DownloadException,
@@ -65,18 +65,16 @@ class VideoInfo(Struct):
 class Downloader:
     """下载器，支持youtube-dlp 和 流式下载"""
 
-    def __init__(self, config: AstrBotConfig):
-        self.config = config
-        self.cache_dir = Path(config["cache_dir"])
-        self.proxy: str | None = self.config["proxy"] or None
-        self.max_duration: int = config["source_max_minute"] * 60
-        self.max_size = self.config["source_max_size"]
+    def __init__(self, config: PluginConfig):
+        self.cfg = config
+        self.max_duration: int = self.cfg.source_max_minute * 60
+        self.max_size = self.cfg.source_max_size
         self.headers: dict[str, str] = COMMON_HEADER.copy()
         # 视频信息缓存
         self.info_cache: LimitedSizeDict[str, VideoInfo] = LimitedSizeDict()
         # 用于流式下载的客户端
         self.client = ClientSession(
-            timeout=ClientTimeout(total=config["download_timeout"])
+            timeout=ClientTimeout(total=self.cfg.download_timeout)
         )
 
     @auto_task
@@ -105,7 +103,7 @@ class Downloader:
 
         if not file_name:
             file_name = generate_file_name(url)
-        file_path = self.cache_dir / file_name
+        file_path = self.cfg.cache_dir / file_name
         # 如果文件存在，则直接返回
         if file_path.exists():
             return file_path
@@ -114,9 +112,9 @@ class Downloader:
 
         # Use sentinel value to detect if proxy was explicitly passed
         if proxy is ...:
-            proxy = self.proxy
+            proxy = self.cfg.proxy
 
-        retries = 2
+        retries = self.cfg.download_retry_times
         for attempt in range(retries + 1):
             try:
                 async with self.client.get(
@@ -167,6 +165,7 @@ class Downloader:
                     continue
                 logger.exception(f"下载失败 | url: {url}, file_path: {file_path}")
                 raise DownloadException("媒体下载失败") from exc
+        raise DownloadException("媒体下载失败")
 
     @staticmethod
     def get_progress_bar(desc: str, total: int | None = None) -> tqdm:
@@ -383,11 +382,11 @@ class Downloader:
             "cookiefile": None,
             "http_headers": self.headers,
         }
-        if self.proxy:
-            opts["proxy"] = self.proxy
+        if self.cfg.proxy:
+            opts["proxy"] = self.cfg.proxy
         if cookiefile and cookiefile.is_file():
             opts["cookiefile"] = str(cookiefile)
-        with yt_dlp.YoutubeDL(opts) as ydl:
+        with yt_dlp.YoutubeDL(opts) as ydl: # type: ignore
             raw = await to_thread(ydl.extract_info, url, download=False)
             if not raw:
                 raise ParseException("获取视频信息失败")
@@ -402,7 +401,7 @@ class Downloader:
         if info.duration > self.max_duration:
             raise DurationLimitException
 
-        video_path = self.cache_dir / generate_file_name(url, ".mp4")
+        video_path = self.cfg.cache_dir / generate_file_name(url, ".mp4")
         if video_path.exists():
             return video_path
 
@@ -417,23 +416,23 @@ class Downloader:
             "cookiefile": None,
             "http_headers": self.headers,
         }
-        if self.proxy:
-            opts["proxy"] = self.proxy
+        if self.cfg.proxy:
+            opts["proxy"] = self.cfg.proxy
         if cookiefile and cookiefile.is_file():
             opts["cookiefile"] = str(cookiefile)
 
-        with yt_dlp.YoutubeDL(opts) as ydl:
+        with yt_dlp.YoutubeDL(opts) as ydl: # type: ignore
             await to_thread(ydl.download, [url])
         return video_path
 
     async def _ytdlp_download_audio(self, url: str, cookiefile: Path | None) -> Path:
         file_name = generate_file_name(url)
-        audio_path = self.cache_dir / f"{file_name}.flac"
+        audio_path = self.cfg.cache_dir / f"{file_name}.flac"
         if audio_path.exists():
             return audio_path
 
         opts = {
-            "outtmpl": str(self.cache_dir / file_name) + ".%(ext)s",
+            "outtmpl": str(self.cfg.cache_dir / file_name) + ".%(ext)s",
             "format": "bestaudio/best",
             "postprocessors": [
                 {
@@ -445,12 +444,12 @@ class Downloader:
             "cookiefile": None,
             "http_headers": self.headers,
         }
-        if self.proxy:
-            opts["proxy"] = self.proxy
+        if self.cfg.proxy:
+            opts["proxy"] = self.cfg.proxy
         if cookiefile and cookiefile.is_file():
             opts["cookiefile"] = str(cookiefile)
 
-        with yt_dlp.YoutubeDL(opts) as ydl:
+        with yt_dlp.YoutubeDL(opts) as ydl: # type: ignore
             await to_thread(ydl.download, [url])
         return audio_path
 

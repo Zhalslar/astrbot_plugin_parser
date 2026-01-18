@@ -5,38 +5,6 @@
         "type": "list",
         "default": []
     },
-    "enable_platforms": {
-        "description": "启用解析的平台",
-        "hint": "打勾表示启用该平台的解析器。请 PR 者写好解析器后务必在这里加上平台名，作为总开关",
-        "type": "list",
-        "options": [
-            "A站",
-            "B站",
-            "微博",
-            "小红书",
-            "抖音",
-            "快手",
-            "NGA",
-            "TikTok",
-            "Instagram",
-            "推特",
-            "油管",
-            "网易云"
-        ],
-        "default": [
-            "A站",
-            "B站",
-            "微博",
-            "小红书",
-            "抖音",
-            "快手",
-            "NGA",
-            "TikTok",
-            "Instagram",
-            "推特",
-            "油管"
-        ]
-    },
     "arbiter": {
         "description": "仲裁机制",
         "hint": "仲裁机制：一个确保群内只有一个 Bot 对链接进行解析的机制，利用 QQ 贴表情来实现。注意：此开关无效，所有插件使用者强制启用仲裁机制，以确保所有 Bot 遵循本插件的仲裁协议",
@@ -116,6 +84,17 @@
         },
         "default": 280
     },
+    "download_retry_times": {
+        "description": "下载失败重试次数",
+        "hint": "下载失败时，最多重试的次数",
+        "type": "int",
+        "slider": {
+            "min": 0,
+            "max": 5,
+            "step": 1
+        },
+        "default": 2
+    },
     "common_timeout": {
         "description": "普通请求超时时间",
         "hint": "普通请求超时时间，单位秒。用于一些普通的请求 ",
@@ -127,63 +106,9 @@
         },
         "default": 15
     },
-    "bili_ck": {
-        "description": "Bilibili Cookies",
-        "hint": "用于B站解析的登录Cookies，留空则使用无登录状态",
-        "type": "text",
-        "default": ""
-    },
-    "douyin_ck": {
-        "description": "抖音 Cookies",
-        "hint": "用于抖音解析的登录Cookies，留空则使用无登录状态",
-        "type": "text",
-        "default": ""
-    },
-    "bili_video_codecs": {
-        "description": "B站视频编码",
-        "hint": "优先下载的编码类型，可选：AVC、AV1、HEV",
-        "type": "string",
-        "options": [
-            "AVC",
-            "AV1",
-            "HEV"
-        ],
-        "default": "AVC"
-    },
-    "bili_video_quality": {
-        "description": "B站视频分辨率",
-        "hint": "下载B站视频的分辨率",
-        "type": "string",
-        "options": [
-            "_360P",
-            "_480P",
-            "_720P",
-            "_1080P",
-            "_1080P_PLUS",
-            "_1080P_60",
-            "_4K",
-            "HDR",
-            "DOLBY",
-            "_8K",
-            "AI_REPAIR"
-        ],
-        "default": "_720P"
-    },
-    "ytb_ck": {
-        "description": "YouTube Cookies",
-        "hint": "用于YouTube解析的登录Cookies，留空则使用无登录状态",
-        "type": "text",
-        "default": ""
-    },
-    "ig_ck": {
-        "description": "Instagram Cookies",
-        "hint": "用于Instagram解析的登录Cookies，留空则使用无登录状态",
-        "type": "text",
-        "default": ""
-    },
     "proxy": {
         "description": "代理地址",
-        "hint": "如 http://127.0.0.1:7890，留空则直连。仅作用于 youtube, tiktok, instagram 解析",
+        "hint": "如 http://127.0.0.1:7890, 留空则直连。配置代理地址后, 请在各个解析器中再配置是否使用代理",
         "type": "string",
         "default": ""
     },
@@ -211,19 +136,245 @@
         "type": "string",
         "default": "30 2 * * *"
     },
-    "data_dir": {
-        "description": "数据目录",
-        "type": "string",
-        "invisible": true
-    },
-    "cache_dir": {
-        "description": "缓存目录",
-        "type": "string",
-        "invisible": true
-    },
-    "ytb_cookies_file": {
-        "description": "YouTube Cookies 文件",
-        "type": "string",
-        "invisible": true
+    "parsers_template": {
+        "description": "解析器",
+        "type": "template_list",
+        "hint": "配置各个解析器, 没配置的解析器将不会被启用, 请勿添加相同的解析器",
+        "templates": {
+            "bilibili": {
+                "name": "B站解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "cookies": {
+                        "description": "Bilibili Cookies",
+                        "hint": "用于解析的登录Cookies，留空则使用无登录状态",
+                        "type": "text",
+                        "default": ""
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "video_codecs": {
+                        "description": "B站视频编码",
+                        "hint": "优先下载的编码类型，可选：AVC、AV1、HEV",
+                        "type": "string",
+                        "options": [
+                            "AVC",
+                            "AV1",
+                            "HEV"
+                        ],
+                        "default": "AVC"
+                    },
+                    "video_quality": {
+                        "description": "B站视频分辨率",
+                        "hint": "下载B站视频的分辨率",
+                        "type": "string",
+                        "options": [
+                            "_360P",
+                            "_480P",
+                            "_720P",
+                            "_1080P",
+                            "_1080P_PLUS",
+                            "_1080P_60",
+                            "_4K",
+                            "HDR",
+                            "DOLBY",
+                            "_8K",
+                            "AI_REPAIR"
+                        ],
+                        "default": "_720P"
+                    }
+                }
+            },
+            "douyin": {
+                "name": "抖音解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "cookies": {
+                        "description": "抖音 Cookies",
+                        "hint": "用于解析的登录Cookies，留空则使用无登录状态",
+                        "type": "text",
+                        "default": ""
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    }
+                }
+            },
+            "kuaishou": {
+                "name": "快手解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    }
+                }
+            },
+            "weibo": {
+                "name": "微博解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    }
+                }
+            },
+            "xhs": {
+                "name": "小红书解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    }
+                }
+            },
+            "tiktok": {
+                "name": "Tiktok 解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": true
+                    }
+                }
+            },
+            "youtube": {
+                "name": "YouTube 解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "cookies": {
+                        "description": "油管 Cookies",
+                        "hint": "用于YouTube解析的登录Cookies，留空则使用无登录状态",
+                        "type": "text",
+                        "default": ""
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": true
+                    }
+                }
+            },
+            "instagram": {
+                "name": "Instagram 解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "cookies": {
+                        "description": "Instagram Cookies",
+                        "hint": "用于Instagram解析的登录Cookies，留空则使用无登录状态",
+                        "type": "text",
+                        "default": ""
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": true
+                    }
+                }
+            },
+            "twitter":{
+                "name": "Twitter 解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": true
+                    }
+                }
+            },
+            "acfun": {
+                "name": "A站解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    }
+                }
+            },
+            "ncm": {
+                "name": "网易云解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    }
+                }
+            },
+            "nga": {
+                "name": "NGA解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    }
+                }
+            }
+        }
     }
 }

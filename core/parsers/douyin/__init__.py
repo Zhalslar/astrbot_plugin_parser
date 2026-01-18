@@ -1,13 +1,12 @@
-import json
+
 import re
-from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 import msgspec
 
 from astrbot.api import logger
-from astrbot.core.config.astrbot_config import AstrBotConfig
 
+from ...config import PluginConfig
 from ..base import (
     BaseParser,
     Downloader,
@@ -24,46 +23,18 @@ class DouyinParser(BaseParser):
     # 平台信息
     platform: ClassVar[Platform] = Platform(name="douyin", display_name="抖音")
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
-        self.douyin_ck = config.get("douyin_ck", "")
-        self._cookies_file = Path(config["data_dir"]) / "douyin_cookies.json"
-        self._load_cookies()
-        if self.douyin_ck:
-            self._set_cookies(self.douyin_ck)
-
-    def _clean_cookie(self, cookie: str) -> str:
-        """清理cookie中的换行符和回车符"""
-        return cookie.replace("\n", "").replace("\r", "").strip()
-
+        self.mycfg = config.parser.douyin
+        self.cookies = self.mycfg.cookies
+        if self.cookies:
+            self._set_cookies(self.cookies)
     def _set_cookies(self, cookies: str):
         """设置cookie到请求头"""
-        cleaned_cookies = self._clean_cookie(cookies)
+        cleaned_cookies = cookies.replace("\n", "").replace("\r", "").strip()
         if cleaned_cookies:
             self.ios_headers["Cookie"] = cleaned_cookies
             self.android_headers["Cookie"] = cleaned_cookies
-
-    def _load_cookies(self):
-        """从文件加载抖音 cookies"""
-        if not self._cookies_file.exists():
-            return
-
-        try:
-            cookies_data = json.loads(self._cookies_file.read_text())
-            self.douyin_ck = cookies_data.get("cookie", "")
-            if self.douyin_ck:
-                self._set_cookies(self.douyin_ck)
-                logger.info(f"已从 {self._cookies_file} 加载抖音 cookies")
-        except Exception as e:
-            logger.warning(f"加载抖音 cookies 失败: {e}")
-
-    def _save_cookies(self, cookies: str):
-        """保存抖音 cookies 到文件"""
-        try:
-            self._cookies_file.write_text(json.dumps({"cookie": cookies}, ensure_ascii=False))
-            logger.info(f"已保存抖音 cookies 到 {self._cookies_file}")
-        except Exception as e:
-            logger.warning(f"保存抖音 cookies 失败: {e}")
 
     def _update_cookies_from_response(self, set_cookie_headers: list[str]):
         """从响应的 Set-Cookie 头中更新 cookies"""
@@ -74,8 +45,8 @@ class DouyinParser(BaseParser):
 
         # 解析现有的 cookies
         existing_cookies = {}
-        if self.douyin_ck:
-            for cookie in self.douyin_ck.split(";"):
+        if self.cookies:
+            for cookie in self.cookies.split(";"):
                 cookie = cookie.strip()
                 if cookie and "=" in cookie:
                     name, value = cookie.split("=", 1)
@@ -96,10 +67,10 @@ class DouyinParser(BaseParser):
         # 合并为 cookie 字符串
         new_cookies = "; ".join([f"{k}={v}" for k, v in existing_cookies.items()])
 
-        if new_cookies != self.douyin_ck:
-            self.douyin_ck = new_cookies
-            self._set_cookies(self.douyin_ck)
-            self._save_cookies(self.douyin_ck)
+        if new_cookies != self.cookies:
+            self.cookies = new_cookies
+            self.cfg.save()
+            self._set_cookies(self.cookies)
             logger.debug("[抖音] Cookies 已更新并保存")
         else:
             logger.debug("[抖音] Cookies 无变化")
@@ -160,7 +131,7 @@ class DouyinParser(BaseParser):
         logger.debug(f"[抖音] 请求头 User-Agent: {headers.get('User-Agent', 'N/A')}")
         logger.debug(f"[抖音] 请求头 Cookie: {'已配置' if headers.get('Cookie') else '未配置'}")
 
-        async with self.client.get(
+        async with self.session.get(
             url, headers=headers, allow_redirects=False, ssl=False
         ) as resp:
             logger.debug(f"[抖音] 短链重定向响应状态码: {resp.status}")
@@ -187,7 +158,7 @@ class DouyinParser(BaseParser):
         logger.debug(f"[抖音] 请求头 User-Agent: {self.ios_headers.get('User-Agent', 'N/A')}")
         logger.debug(f"[抖音] 请求头 Cookie: {'已配置' if self.ios_headers.get('Cookie') else '未配置'}")
 
-        async with self.client.get(
+        async with self.session.get(
             url, headers=self.ios_headers, allow_redirects=False, ssl=False
         ) as resp:
             logger.debug(f"[抖音] 视频页面响应状态码: {resp.status}")
@@ -253,7 +224,7 @@ class DouyinParser(BaseParser):
         logger.debug(f"[抖音] 请求头 User-Agent: {self.android_headers.get('User-Agent', 'N/A')}")
         logger.debug(f"[抖音] 请求头 Cookie: {'已配置' if self.android_headers.get('Cookie') else '未配置'}")
 
-        async with self.client.get(
+        async with self.session.get(
             url, params=params, headers=self.android_headers, ssl=False
         ) as resp:
             logger.debug(f"[抖音] 幻灯片API响应状态码: {resp.status}")

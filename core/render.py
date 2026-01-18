@@ -13,8 +13,8 @@ from apilmoji.core import get_font_height
 from PIL import Image, ImageDraw, ImageFont
 
 from astrbot.api import logger
-from astrbot.core.config.astrbot_config import AstrBotConfig
 
+from .config import PluginConfig
 from .data import GraphicsContent, ParseResult
 
 # 定义类型变量
@@ -306,13 +306,12 @@ class Renderer:
     DEFAULT_VIDEO_BUTTON_PATH: ClassVar[Path] = RESOURCES_DIR / _BUTTON_FILENAME
     """默认视频按钮路径"""
 
-    def __init__(self, config: AstrBotConfig):
-        self.config = config
-        self.cache_dir = Path(config["cache_dir"])
+    def __init__(self, config: PluginConfig):
+        self.cfg = config
         self.EMOJI_SOURCE = EmojiCDNSource(
-            base_url=config["emoji_cdn"],
-            style=config["emoji_style"],
-            cache_dir=self.cache_dir / self._EMOJIS,
+            base_url=self.cfg.emoji_cdn,
+            style=self.cfg.emoji_style,
+            cache_dir=self.cfg.cache_dir / self._EMOJIS,
             enable_tqdm=True,
         )
         """Emoji Source"""
@@ -423,7 +422,7 @@ class Renderer:
 
     async def render_card(self, result: ParseResult) -> Path | None:
         """渲染卡片并落盘，失败返回 None"""
-        cache = self.cache_dir / f"card_{uuid.uuid4().hex}.png"
+        cache = self.cfg.cache_dir / f"card_{uuid.uuid4().hex}.png"
         try:
             img = await self._create_card_image(result)
             buf = BytesIO()

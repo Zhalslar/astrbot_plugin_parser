@@ -5,8 +5,7 @@ from typing import Any, ClassVar
 from aiohttp import ClientError
 from bs4 import BeautifulSoup, Tag
 
-from astrbot.core.config.astrbot_config import AstrBotConfig
-
+from ..config import PluginConfig
 from ..data import ParseResult, Platform
 from ..download import Downloader
 from ..exception import ParseException
@@ -17,23 +16,24 @@ class TwitterParser(BaseParser):
     # 平台信息
     platform: ClassVar[Platform] = Platform(name="twitter", display_name="推特")
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
+        self.mycfg = config.parser.twitter
+        self.headers.update(
+            {
+                "Accept": "application/json, text/plain, */*",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Origin": "https://xdown.app",
+                "Referer": "https://xdown.app/",
+            }
+        )
+        self.xdown_url = "https://xdown.app/api/ajaxSearch"
 
     async def _req_xdown_api(self, url: str) -> dict[str, Any]:
-        headers = {
-            "Accept": "application/json, text/plain, */*",
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": "https://xdown.app",
-            "Referer": "https://xdown.app/",
-            **self.headers,
-        }
-        data = {"q": url, "lang": "zh-cn"}
-
-        async with self.client.post(
-            "https://xdown.app/api/ajaxSearch",
-            data=data,
-            headers=headers,
+        async with self.session.post(
+            url=self.xdown_url,
+            data={"q": url, "lang": "zh-cn"},
+            headers=self.headers,
         ) as resp:
             if resp.status >= 400:
                 raise ClientError(f"xdown API {resp.status} {resp.reason}")

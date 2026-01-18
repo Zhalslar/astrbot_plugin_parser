@@ -10,7 +10,7 @@ from .nga import NGAParser
 from .tiktok import TikTokParser
 from .twitter import TwitterParser
 from .weibo import WeiBoParser
-from .xiaohongshu import XiaoHongShuParser
+from .xhs import XHSParser
 from .youtube import YouTubeParser
 
 __all__ = [
@@ -25,6 +25,6 @@ __all__ = [
     "TikTokParser",
     "TwitterParser",
     "WeiBoParser",
-    "XiaoHongShuParser",
+    "XHSParser",
     "YouTubeParser",
 ]

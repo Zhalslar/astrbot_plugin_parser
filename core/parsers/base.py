@@ -10,8 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
 from aiohttp import ClientError, ClientSession, ClientTimeout
 from typing_extensions import Unpack
 
-from astrbot.core.config.astrbot_config import AstrBotConfig
-
+from ..config import ParserItem, PluginConfig
 from ..constants import ANDROID_HEADER, COMMON_HEADER, IOS_HEADER
 from ..data import (
     AudioContent,
@@ -26,7 +25,7 @@ from ..data import (
     VideoContent,
 )
 from ..download import Downloader
-from ..exception import ParseException
+from ..exception import ParseException, RedirectException
 
 T = TypeVar("T", bound="BaseParser")
 HandlerFunc = Callable[[T, Match[str]], Coroutine[Any, Any, ParseResult]]
@@ -68,26 +67,24 @@ class BaseParser:
         _key_patterns: ClassVar[KeyPatterns]
         _handlers: ClassVar[dict[str, HandlerFunc]]
 
-    def __init__(
-        self,
-        config: AstrBotConfig,
-        downloader: Downloader,
-    ):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         self.headers = COMMON_HEADER.copy()
         self.ios_headers = IOS_HEADER.copy()
         self.android_headers = ANDROID_HEADER.copy()
-        self.config = config
-        self.data_dir = Path(config["data_dir"])
+        self.cfg = config
+        self.data_dir = self.cfg.data_dir
         self.downloader = downloader
-        # Proxy only applies to platforms: youtube, tiktok, instagram (as per configuration)
-        proxy_enabled_platforms = ["youtube", "tiktok", "instagram"]
-        if self.__class__.platform.name in proxy_enabled_platforms:
-            self.proxy = config.get("proxy") or None
-        else:
-            self.proxy = None
-        # 每个实例拥有独立的 session
         self._session: ClientSession | None = None
-        self._timeout = config["common_timeout"]
+
+    @property
+    def proxy(self) -> str | None:
+        try:
+            parser_cfg: ParserItem = getattr(
+                self.cfg.parser, self.__class__.platform.name
+            )
+            return self.cfg.proxy if parser_cfg.use_proxy else None
+        except AttributeError:
+            return None
 
     def __init_subclass__(cls, **kwargs):
         """自动注册子类到 _registry"""
@@ -117,10 +114,12 @@ class BaseParser:
         return cls._registry
 
     @property
-    def client(self) -> ClientSession:
+    def session(self) -> ClientSession:
         """获取当前实例的 session，惰性创建"""
         if self._session is None or self._session.closed:
-            self._session = ClientSession(timeout=ClientTimeout(total=self._timeout))
+            self._session = ClientSession(
+                timeout=ClientTimeout(total=self.cfg.common_timeout)
+            )
         return self._session
 
     async def close_session(self) -> None:
@@ -180,22 +179,21 @@ class BaseParser:
     ) -> str:
         """获取重定向后的 URL, 单次重定向"""
         headers = headers or COMMON_HEADER.copy()
-        retries = 2
+        retries = self.cfg.download_retry_times
         for attempt in range(retries + 1):
             try:
-                async with self.client.get(
+                async with self.session.get(
                     url, headers=headers, allow_redirects=False, proxy=self.proxy
                 ) as resp:
                     if resp.status >= 400:
-                        raise ClientError(
-                            f"redirect check {resp.status} {resp.reason}"
-                        )
+                        raise ClientError(f"redirect check {resp.status} {resp.reason}")
                     return resp.headers.get("Location", url)
-            except (ClientError, TimeoutError) as exc:
+            except (ClientError, TimeoutError):
                 if attempt < retries:
                     await sleep(1 + attempt)
                     continue
-                raise
+                raise RedirectException()
+        raise RedirectException()
 
     async def get_final_url(
         self,
@@ -207,17 +205,20 @@ class BaseParser:
         retries = 2
         for attempt in range(retries + 1):
             try:
-                async with self.client.get(
+                async with self.session.get(
                     url, headers=headers, allow_redirects=True, proxy=self.proxy
                 ) as resp:
                     if resp.status >= 400:
-                        raise ClientError(f"final url check {resp.status} {resp.reason}")
+                        raise ClientError(
+                            f"final url check {resp.status} {resp.reason}"
+                        )
                     return str(resp.url)
-            except (ClientError, TimeoutError) as exc:
+            except (ClientError, TimeoutError):
                 if attempt < retries:
                     await sleep(1 + attempt)
                     continue
-                raise
+                raise RedirectException()
+        raise RedirectException()
 
     def create_author(
         self,
@@ -263,7 +264,9 @@ class BaseParser:
         """创建图片内容列表"""
         contents: list[ImageContent] = []
         for url in image_urls:
-            task = self.downloader.download_img(url, ext_headers=ext_headers or self.headers, proxy=self.proxy)
+            task = self.downloader.download_img(
+                url, ext_headers=ext_headers or self.headers, proxy=self.proxy
+            )
             contents.append(ImageContent(task))
         return contents
 
@@ -275,7 +278,9 @@ class BaseParser:
         """创建动态图片内容列表"""
         contents: list[DynamicContent] = []
         for url in dynamic_urls:
-            task = self.downloader.download_video(url, ext_headers=ext_headers or self.headers, proxy=self.proxy)
+            task = self.downloader.download_video(
+                url, ext_headers=ext_headers or self.headers, proxy=self.proxy
+            )
             contents.append(DynamicContent(task))
         return contents
 
@@ -299,7 +304,9 @@ class BaseParser:
         alt: str | None = None,
     ):
         """创建图文内容 图片不能为空 文字可空 渲染时文字在前 图片在后"""
-        image_task = self.downloader.download_img(image_url, ext_headers=self.headers, proxy=self.proxy)
+        image_task = self.downloader.download_img(
+            image_url, ext_headers=self.headers, proxy=self.proxy
+        )
         return GraphicsContent(image_task, text, alt)
 
     def create_file_content(

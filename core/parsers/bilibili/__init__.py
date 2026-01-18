@@ -1,19 +1,18 @@
 import asyncio
 import json
 from collections.abc import AsyncGenerator
-from pathlib import Path
 from re import Match
 from typing import ClassVar
 
-from bilibili_api import HEADERS, Credential, request_settings, select_client
+from bilibili_api import Credential, request_settings, select_client
 from bilibili_api.login_v2 import QrCodeLogin, QrCodeLoginEvents
 from bilibili_api.opus import Opus
 from bilibili_api.video import Video, VideoCodecs, VideoQuality
 from msgspec import convert
 
 from astrbot.api import logger
-from astrbot.core.config.astrbot_config import AstrBotConfig
 
+from ...config import PluginConfig
 from ...data import ImageContent, MediaContent, Platform
 from ...exception import DownloadException, DurationLimitException
 from ...utils import ck2dict
@@ -35,21 +34,19 @@ class BilibiliParser(BaseParser):
     # 平台信息
     platform: ClassVar[Platform] = Platform(name="bilibili", display_name="B站")
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
-        self.headers = HEADERS.copy()
+        self.mycfg = config.parser.bilibili
         self._credential: Credential | None = None
-        self.max_duration = config["source_max_minute"] * 60
-        self.cache_dir = Path(config["cache_dir"])
 
         self.video_quality = getattr(
-            VideoQuality, config["bili_video_quality"].upper(), VideoQuality._720P
+            VideoQuality, self.mycfg.video_quality.upper(), VideoQuality._720P
         )
         self.codecs = getattr(
-            VideoCodecs, config["bili_video_codecs"].upper(), VideoCodecs.AVC
+            VideoCodecs, self.mycfg.video_codecs.upper(), VideoCodecs.AVC
         )
-        self.bili_ck = config["bili_ck"]
-        self._cookies_file = Path(config["data_dir"]) / "bilibili_cookies.json"
+        self.bili_ck = self.mycfg.cookies
+        self._cookies_file = self.cfg.data_dir / "bilibili_cookies.json"
 
     @handle("b23.tv", r"b23\.tv/[A-Za-z\d\._?%&+\-=/#]+")
     @handle("bili2233", r"bili2233\.cn/[A-Za-z\d\._?%&+\-=/#]+")
@@ -163,11 +160,11 @@ class BilibiliParser(BaseParser):
 
         # 视频下载 task
         async def download_video():
-            output_path = self.cache_dir / f"{video_info.bvid}-{page_num}.mp4"
+            output_path = self.cfg.cache_dir / f"{video_info.bvid}-{page_num}.mp4"
             if output_path.exists():
                 return output_path
             v_url, a_url = await self.extract_download_urls(video=video, page_index=page_info.index)
-            if page_info.duration > self.max_duration:
+            if page_info.duration > self.cfg.max_duration:
                 raise DurationLimitException
             if a_url is not None:
                 return await self.downloader.download_av_and_merge(

@@ -1,14 +1,12 @@
 import asyncio
 import shutil
-import zoneinfo
-from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from astrbot.api import logger
-from astrbot.core.config.astrbot_config import AstrBotConfig
-from astrbot.core.star.context import Context
+
+from .config import PluginConfig
 
 
 class CacheCleaner:
@@ -18,24 +16,18 @@ class CacheCleaner:
 
     JOBNAME = "CacheCleaner"
 
-    def __init__(self, context: Context, config: AstrBotConfig):
-        self.clean_cron = config["clean_cron"]
-        self.cache_dir = Path(config["cache_dir"])
-
-        tz = context.get_config().get("timezone")
-        self.timezone = (
-            zoneinfo.ZoneInfo(tz) if tz else zoneinfo.ZoneInfo("Asia/Shanghai")
-        )
-        self.scheduler = AsyncIOScheduler(timezone=self.timezone)
+    def __init__(self, config: PluginConfig):
+        self.cfg = config
+        self.scheduler = AsyncIOScheduler(timezone=self.cfg.timezone)
         self.scheduler.start()
 
         self.register_task()
 
-        logger.info(f"{self.JOBNAME} 已启动，任务周期：{self.clean_cron}")
+        logger.info(f"{self.JOBNAME} 已启动，任务周期：{self.cfg.clean_cron}")
 
     def register_task(self):
         try:
-            self.trigger = CronTrigger.from_crontab(self.clean_cron)
+            self.trigger = CronTrigger.from_crontab(self.cfg.clean_cron)
             self.scheduler.add_job(
                 func=self._clean_plugin_cache,
                 trigger=self.trigger,
@@ -49,8 +41,8 @@ class CacheCleaner:
         """删除并重建缓存目录"""
         loop = asyncio.get_running_loop()
         try:
-            await loop.run_in_executor(None, shutil.rmtree, self.cache_dir)
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            await loop.run_in_executor(None, shutil.rmtree, self.cfg.cache_dir)
+            self.cfg.cache_dir.mkdir(parents=True, exist_ok=True)
             logger.info("Cache directory cleaned and recreated.")
         except Exception:
             logger.exception("Error while cleaning cache directory.")

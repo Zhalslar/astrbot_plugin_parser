@@ -9,8 +9,8 @@ import aiofiles
 from aiohttp import ClientError
 
 from astrbot.api import logger
-from astrbot.core.config.astrbot_config import AstrBotConfig
 
+from ..config import PluginConfig
 from ..download import Downloader
 from ..exception import DownloadException, ParseException
 from ..utils import safe_unlink
@@ -21,18 +21,19 @@ class AcfunParser(BaseParser):
     # 平台信息
     platform: ClassVar[Platform] = Platform(name="acfun", display_name="A站")
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
-        self.headers["referer"] = "https://www.acfun.cn/"
-        self.cache_dir = Path(config["cache_dir"])
-        self.max_size = self.config["source_max_size"]
+        self.mycfg = config.parser.acfun
+        self.headers.update({"referer": "https://www.acfun.cn/"})
 
     @handle("acfun.cn", r"(?:ac=|/ac)(?P<acid>\d+)")
     async def _parse(self, searched: re.Match[str]):
         acid = int(searched.group("acid"))
         url = f"https://www.acfun.cn/v/ac{acid}"
 
-        m3u8_url, title, description, author, upload_time = await self.parse_video_info(url)
+        m3u8_url, title, description, author, upload_time = await self.parse_video_info(
+            url
+        )
         author = self.create_author(author) if author else None
 
         # 2024-12-1 -> timestamp
@@ -66,7 +67,7 @@ class AcfunParser(BaseParser):
         # 拼接查询参数
         url = f"{url}?quickViewId=videoInfo_new&ajaxpipe=1"
 
-        async with self.client.get(url, headers=self.headers) as resp:
+        async with self.session.get(url, headers=self.headers) as resp:
             if resp.status >= 400:
                 raise ClientError(f"HTTP {resp.status}")
             raw = await resp.text()
@@ -103,27 +104,25 @@ class AcfunParser(BaseParser):
         """
 
         m3u8_full_urls = await self._parse_m3u8(m3u8s_url)
-        video_file = self.cache_dir / f"acfun_{acid}.mp4"
+        video_file = self.cfg.cache_dir / f"acfun_{acid}.mp4"
         if video_file.exists():
             return video_file
-
-        max_size = self.max_size * 1024 * 1024
 
         try:
             async with aiofiles.open(video_file, "wb") as f:
                 with self.downloader.get_progress_bar(video_file.name) as bar:
                     total = 0
                     for url in m3u8_full_urls:
-                        async with self.client.get(url, headers=self.headers) as resp:
+                        async with self.session.get(url, headers=self.headers) as resp:
                             if resp.status >= 400:
                                 raise ClientError(f"{resp.status} {resp.reason}")
                             async for chunk in resp.content.iter_chunked(1024 * 1024):
                                 await f.write(chunk)
                                 total += len(chunk)
                                 bar.update(len(chunk))
-                                if total > max_size:        # 大小截断
+                                if total > self.cfg.max_size:  # 大小截断
                                     break
-                        if total > max_size:
+                        if total > self.cfg.max_size:
                             break
 
         except ClientError:
@@ -141,7 +140,7 @@ class AcfunParser(BaseParser):
         Returns:
             list[str]: 视频链接
         """
-        async with self.client.get(m3u8_url, headers=self.headers) as resp:
+        async with self.session.get(m3u8_url, headers=self.headers) as resp:
             if resp.status >= 400:
                 raise ClientError(f"{resp.status} {resp.reason}")
             m3u8_file = await resp.text()

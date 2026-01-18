@@ -1,13 +1,11 @@
 import re
-from pathlib import Path
 from typing import ClassVar
 
 import msgspec
 from aiohttp import ClientError
 from msgspec import Struct
 
-from astrbot.core.config.astrbot_config import AstrBotConfig
-
+from ..config import PluginConfig
 from ..download import Downloader
 from ..utils import save_cookies_with_netscape
 from .base import BaseParser, Platform, handle
@@ -17,23 +15,23 @@ class YouTubeParser(BaseParser):
     # 平台信息
     platform: ClassVar[Platform] = Platform(name="youtube", display_name="油管")
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
-        self.ytb_cookies_file = Path(self.config["ytb_cookies_file"]) or None
-        self.max_duration = config["source_max_minute"] * 60
-        self._set_cookies()
+        self.mycfg = config.parser.youtube
+        if not self.mycfg:
+            raise ValueError("YouTube Parser config not found")
+
+        self.ytb_cookies_file = None
+        if self.mycfg.cookies:
+            self._set_cookies()
 
     def _set_cookies(self):
-        if self.config["ytb_ck"]:
-            ytb_cookies_file = self.data_dir / "ytb_cookies.txt"
-            ytb_cookies_file.parent.mkdir(parents=True, exist_ok=True)
-            save_cookies_with_netscape(
-                self.config["ytb_ck"],
-                ytb_cookies_file,
-                "youtube.com",
-            )
-            self.config["ytb_cookies_file"] = str(ytb_cookies_file)
-            self.config.save_config()
+        self.ytb_cookies_file = self.data_dir / "ytb_cookies.txt"
+        self.ytb_cookies_file.parent.mkdir(parents=True, exist_ok=True)
+        save_cookies_with_netscape(
+            self.mycfg.cookies, self.ytb_cookies_file, "youtube.com"
+        )
+
     @handle("youtu.be", r"https?://(?:www\.)?youtu\.be/[A-Za-z\d\._\?%&\+\-=/#]+")
     @handle(
         "youtube.com",
@@ -52,9 +50,12 @@ class YouTubeParser(BaseParser):
         author = await self._fetch_author_info(video_info.channel_id)
 
         contents = []
-        if video_info.duration <= self.max_duration:
+        if video_info.duration <= self.cfg.max_duration:
             video = self.downloader.download_video(
-                url, use_ytdlp=True, cookiefile=self.ytb_cookies_file, proxy=self.proxy
+                url,
+                use_ytdlp=True,
+                cookiefile=self.ytb_cookies_file,
+                proxy=self.proxy,
             )
             contents.append(
                 self.create_video_content(
@@ -88,9 +89,12 @@ class YouTubeParser(BaseParser):
         contents = []
         contents.extend(self.create_image_contents([video_info.thumbnail]))
 
-        if video_info.duration <= self.max_duration:
+        if video_info.duration <= self.cfg.max_duration:
             audio_task = self.downloader.download_audio(
-                url, use_ytdlp=True, cookiefile=self.ytb_cookies_file, proxy=self.proxy
+                url,
+                use_ytdlp=True,
+                cookiefile=self.ytb_cookies_file,
+                proxy=self.proxy,
             )
             contents.append(
                 self.create_audio_content(audio_task, duration=video_info.duration)
@@ -126,7 +130,7 @@ class YouTubeParser(BaseParser):
             },
             "browseId": channel_id,
         }
-        async with self.client.post(
+        async with self.session.post(
             url,
             json=payload,
             headers=self.headers,

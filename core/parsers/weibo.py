@@ -8,8 +8,7 @@ from aiohttp import ClientError
 from bs4 import BeautifulSoup, Tag
 from msgspec import Struct
 
-from astrbot.core.config.astrbot_config import AstrBotConfig
-
+from ..config import PluginConfig
 from ..data import MediaContent
 from ..download import Downloader
 from .base import BaseParser, ParseException, Platform, handle
@@ -19,16 +18,18 @@ class WeiBoParser(BaseParser):
     # 平台信息
     platform: ClassVar[Platform] = Platform(name="weibo", display_name="微博")
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
-        extra_headers = {
-            "accept": (
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
-                "image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
-            ),
-            "referer": "https://weibo.com/",
-        }
-        self.headers.update(extra_headers)
+        self.mycfg = config.parser.weibo
+        self.headers.update(
+            {
+                "accept": (
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
+                    "image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"
+                ),
+                "referer": "https://weibo.com/",
+            }
+        )
 
     # https://weibo.com/tv/show/1034:5007449447661594?mid=5007452630158934
     @handle("weibo.com/tv", r"weibo\.com/tv/show/\d{4}:\d+\?mid=(?P<mid>\d+)")
@@ -92,7 +93,7 @@ class WeiBoParser(BaseParser):
         }
 
 
-        async with self.client.post(
+        async with self.session.post(
             url=url,
             data=params,
             headers=self.headers,
@@ -156,7 +157,7 @@ class WeiBoParser(BaseParser):
         }
         post_content = 'data={"Component_Play_Playinfo":{"oid":"' + fid + '"}}'
 
-        async with self.client.post(
+        async with self.session.post(
             req_url,
             data=post_content,
             headers=headers,
@@ -231,7 +232,7 @@ class WeiBoParser(BaseParser):
         url = f"https://m.weibo.cn/statuses/show?id={weibo_id}&_={ts}"
 
         # 关键：不带 cookie、不跟随重定向（避免二跳携 cookie）
-        async with self.client.get(
+        async with self.session.get(
             url=url,
             headers=headers,
             allow_redirects=False,

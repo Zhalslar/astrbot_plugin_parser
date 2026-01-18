@@ -1,8 +1,7 @@
 import re
 from typing import ClassVar
 
-from astrbot.core.config.astrbot_config import AstrBotConfig
-
+from ..config import PluginConfig
 from ..data import Author, Platform, VideoContent
 from ..download import Downloader
 from .base import BaseParser, handle
@@ -12,8 +11,9 @@ class TikTokParser(BaseParser):
     # 平台信息
     platform: ClassVar[Platform] = Platform(name="tiktok", display_name="TikTok")
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
+        self.mycfg = config.parser.tiktok
 
     @handle("tiktok.com", r"(?:https?://)?(www|vt|vm)\.tiktok\.com/[A-Za-z0-9._?%&+\-=/#@]*")
     async def _parse(self, searched: re.Match[str]):

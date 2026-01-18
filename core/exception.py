@@ -44,3 +44,10 @@ class ZeroSizeException(DownloadException):
 
     def __init__(self):
         super().__init__("媒体大小为 0, 取消下载")
+
+
+class RedirectException(DownloadException):
+    """下载重定向异常"""
+
+    def __init__(self):
+        super().__init__("媒体链接重定向时出现异常")

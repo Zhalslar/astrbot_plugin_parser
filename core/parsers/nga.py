@@ -8,8 +8,7 @@ from typing import ClassVar
 from aiohttp import ClientError
 from bs4 import BeautifulSoup, Tag
 
-from astrbot.core.config.astrbot_config import AstrBotConfig
-
+from ..config import PluginConfig
 from ..download import Downloader
 from ..exception import ParseException
 from .base import BaseParser, Platform, handle
@@ -19,17 +18,19 @@ class NGAParser(BaseParser):
     # 平台信息
     platform: ClassVar[Platform] = Platform(name="nga", display_name="NGA")
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
-        extra_headers = {
-            "Referer": "https://nga.178.com/",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-            "Accept-Encoding": "gzip, deflate",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-        }
-        self.headers.update(extra_headers)
+        self.mycfg = config.parser.nga
+        self.headers.update(
+            {
+                "Referer": "https://nga.178.com/",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                "Accept-Encoding": "gzip, deflate",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+            }
+        )
         self.base_img_url = "https://img.nga.178.com/attachments"
 
     @staticmethod
@@ -47,7 +48,9 @@ class NGAParser(BaseParser):
         tid = searched.group("tid")
         url = self.nga_url(tid)
         html = None
-        async with self.client.get(url, headers=self.headers, allow_redirects=True) as resp:
+        async with self.session.get(
+            url, headers=self.headers, allow_redirects=True
+        ) as resp:
             try:
                 # 第一次请求可能返回403，但包含设置cookie的JavaScript
                 html = await resp.text()
@@ -70,7 +73,7 @@ class NGAParser(BaseParser):
                         retry_url = f"{url}{separator}rand={rand_param}"
                         clean_headers = self.headers.copy()
                         clean_headers["Cookie"] = f"guestJs={guest_js}"
-                        async with self.client.get(
+                        async with self.session.get(
                             retry_url,
                             headers=clean_headers,
                             allow_redirects=True,

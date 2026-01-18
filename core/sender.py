@@ -1,7 +1,6 @@
 from itertools import chain
 from pathlib import Path
 
-from astrbot.core import AstrBotConfig
 from astrbot.core.message.components import (
     BaseMessageComponent,
     File,
@@ -14,6 +13,7 @@ from astrbot.core.message.components import (
 )
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
 
+from .config import PluginConfig
 from .data import (
     AudioContent,
     DynamicContent,
@@ -47,8 +47,8 @@ class MessageSender:
     - 只负责“怎么发”
     """
 
-    def __init__(self, config: AstrBotConfig, renderer: Renderer):
-        self.config = config
+    def __init__(self, config: PluginConfig, renderer: Renderer):
+        self.cfg = config
         self.renderer = renderer
 
     def _build_send_plan(self, result: ParseResult) -> dict:
@@ -74,15 +74,12 @@ class MessageSender:
 
         # 仅在“单一重媒体且无其他内容”时，才允许渲染卡片
         is_single_heavy = len(heavy) == 1 and not light
-        render_card = is_single_heavy and self.config.get(
-            "single_heavy_render_card", False
-        )
-
+        render_card = is_single_heavy and self.cfg.single_heavy_render_card
         # 实际消息段数量（卡片也算一个段）
         seg_count = len(light) + len(heavy) + (1 if render_card else 0)
 
         # 达到阈值后，强制合并转发，避免刷屏
-        force_merge = seg_count >= self.config["forward_threshold"]
+        force_merge = seg_count >= self.cfg.forward_threshold
 
         return {
             "light": light,
@@ -141,7 +138,7 @@ class MessageSender:
             except (DownloadLimitException, ZeroSizeException):
                 continue
             except DownloadException:
-                if self.config["show_download_fail_tip"]:
+                if self.cfg.show_download_fail_tip:
                     segs.append(Plain("此项媒体下载失败"))
                 continue
 
@@ -164,7 +161,7 @@ class MessageSender:
                 segs.append(Plain("此项媒体超过大小限制"))
                 continue
             except DownloadException:
-                if self.config["show_download_fail_tip"]:
+                if self.cfg.show_download_fail_tip:
                     segs.append(Plain("此项媒体下载失败"))
                 continue
 
@@ -174,7 +171,7 @@ class MessageSender:
                 case AudioContent():
                     segs.append(
                         File(name=path.name, file=str(path))
-                        if self.config["audio_to_file"]
+                        if self.cfg.audio_to_file
                         else Record(str(path))
                     )
                 case FileContent():

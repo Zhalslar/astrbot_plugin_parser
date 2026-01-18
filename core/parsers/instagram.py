@@ -11,8 +11,8 @@ from urllib.parse import urlparse
 import yt_dlp
 
 from astrbot.api import logger
-from astrbot.core.config.astrbot_config import AstrBotConfig
 
+from ..config import PluginConfig
 from ..data import ImageContent, Platform, VideoContent
 from ..download import Downloader
 from ..exception import DownloadException, ParseException
@@ -23,8 +23,9 @@ from .base import BaseParser, handle
 class InstagramParser(BaseParser):
     platform: ClassVar[Platform] = Platform(name="instagram", display_name="Instagram")
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
+        self.mycfg = config.parser.instagram
         self.headers.update(
             {
                 "Origin": "https://www.instagram.com",
@@ -36,7 +37,7 @@ class InstagramParser(BaseParser):
         self._set_cookies()
 
     def _set_cookies(self) -> None:
-        raw_cookies = (self.config.get("ig_ck") or "").strip()
+        raw_cookies = self.mycfg.cookies
         if not raw_cookies:
             return
 
@@ -200,10 +201,10 @@ class InstagramParser(BaseParser):
             opts["cookiefile"] = str(self.ig_cookies_file)
         for attempt in range(1, max_attempts + 1):
             try:
-                with yt_dlp.YoutubeDL(opts) as ydl:
+                with yt_dlp.YoutubeDL(opts) as ydl: # type: ignore
                     raw = await asyncio.to_thread(ydl.extract_info, url, download=False)
                 if isinstance(raw, dict):
-                    return raw
+                    return raw # type: ignore
                 return None
             except Exception as exc:
                 logger.warning(
@@ -222,9 +223,9 @@ class InstagramParser(BaseParser):
         self, url: str, output_name: str | None = None
     ) -> Path:
         if output_name:
-            output_path = self.downloader.cache_dir / output_name
+            output_path = self.cfg.cache_dir / output_name
         else:
-            output_path = self.downloader.cache_dir / generate_file_name(url, ".mp4")
+            output_path = self.cfg.cache_dir / generate_file_name(url, ".mp4")
         if output_path.exists():
             return output_path
         retries = 2
@@ -241,7 +242,7 @@ class InstagramParser(BaseParser):
             opts["cookiefile"] = str(self.ig_cookies_file)
         for attempt in range(retries + 1):
             try:
-                with yt_dlp.YoutubeDL(opts) as ydl:
+                with yt_dlp.YoutubeDL(opts) as ydl: # type: ignore
                     await asyncio.to_thread(ydl.download, [url])
                 return output_path
             except Exception as exc:
@@ -249,7 +250,8 @@ class InstagramParser(BaseParser):
                 if attempt < retries:
                     await asyncio.sleep(1 + attempt)
                     continue
-                raise ParseException("下载失败") from exc
+                raise ParseException("媒体下载失败") from exc
+        raise DownloadException("媒体下载失败")
 
     @staticmethod
     def _iter_entries(info: dict[str, Any]) -> list[dict[str, Any]]:
@@ -334,7 +336,7 @@ class InstagramParser(BaseParser):
             return (
                 prefer_avc,
                 int(height) if isinstance(height, int) else 0,
-                int(tbr) if isinstance(tbr, (int, float)) else 0,
+                int(tbr) if isinstance(tbr, int | float) else 0,
             )
 
         return max(candidates, key=sort_key)
@@ -367,8 +369,8 @@ class InstagramParser(BaseParser):
             abr = fmt.get("abr")
             tbr = fmt.get("tbr")
             return (
-                int(abr) if isinstance(abr, (int, float)) else 0,
-                int(tbr) if isinstance(tbr, (int, float)) else 0,
+                int(abr) if isinstance(abr, int | float) else 0,
+                int(tbr) if isinstance(tbr, int | float) else 0,
             )
 
         return max(candidates, key=sort_key)
@@ -396,7 +398,7 @@ class InstagramParser(BaseParser):
             return (
                 prefer_avc,
                 int(height) if isinstance(height, int) else 0,
-                int(tbr) if isinstance(tbr, (int, float)) else 0,
+                int(tbr) if isinstance(tbr, int | float) else 0,
             )
 
         return max(candidates, key=sort_key)
@@ -430,7 +432,7 @@ class InstagramParser(BaseParser):
 
     def _merged_output_path(self, v_url: str, a_url: str) -> Path:
         digest = hashlib.md5(f"{v_url}|{a_url}".encode()).hexdigest()[:16]
-        return self.downloader.cache_dir / f"{digest}.mp4"
+        return self.cfg.cache_dir / f"{digest}.mp4"
 
 
     @handle(

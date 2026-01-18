@@ -3,8 +3,7 @@ from typing import ClassVar
 
 from aiohttp import ClientError
 
-from astrbot.core.config.astrbot_config import AstrBotConfig
-
+from ..config import PluginConfig
 from ..data import Platform
 from ..download import Downloader
 from .base import BaseParser, handle
@@ -17,8 +16,9 @@ class NCMParser(BaseParser):
         name="ncm", display_name="网易云"
     )
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
+        self.mycfg = config.parser.ncm
 
 
     @handle("163cn.tv", r"163cn\.tv/(?P<short_key>\w+)")
@@ -39,7 +39,7 @@ class NCMParser(BaseParser):
         play_url = f"https://music.163.com/api/song/enhance/player/url?ids=[{song_id}]&br=320000"
 
         # 1. 取歌曲元数据
-        async with self.client.get(detail_url, headers=self.headers) as resp:
+        async with self.session.get(detail_url, headers=self.headers) as resp:
             if resp.status >= 400:
                 raise ClientError(f"[NCM] 获取歌曲信息失败 HTTP {resp.status}")
             detail_json = await resp.json()
@@ -61,7 +61,7 @@ class NCMParser(BaseParser):
         author_avatar = ar_list[0].get("img1v1Url", "") if ar_list else ""
 
         # 2. 取播放地址
-        async with self.client.get(play_url, headers=self.headers) as resp:
+        async with self.session.get(play_url, headers=self.headers) as resp:
             if resp.status >= 400:
                 raise ClientError(f"[NCM] 获取播放地址失败 HTTP {resp.status}")
             play_json = await resp.json()

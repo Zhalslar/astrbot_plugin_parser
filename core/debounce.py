@@ -2,6 +2,8 @@
 
 import time
 
+from .config import PluginConfig
+
 
 class Debouncer:
     """
@@ -10,8 +12,9 @@ class Debouncer:
     - 支持 resource_id 防抖
     """
 
-    def __init__(self, config: dict):
-        self.interval = config["debounce_interval"]
+    def __init__(self, config: PluginConfig):
+        self.cfg = config
+        self.interval = self.cfg.debounce_interval
         self._cache: dict[str, dict[str, float]] = {}  # {session: {key: ts}}
 
     def _hit(self, session: str, key: str) -> bool:

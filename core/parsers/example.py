@@ -1,30 +1,29 @@
+
+"""
 from re import Match
 from typing import ClassVar
 
 from aiohttp import ClientError
 
-from astrbot.core.config.astrbot_config import AstrBotConfig
-
+from ..config import PluginConfig
 from ..data import Platform
 from ..download import Downloader
 from .base import BaseParser, handle
 
-"""
-这是一个示例解析器，请感兴趣的开发者自行实现解析器，并提交PR。
 
-"""
+#这是一个示例解析器，请感兴趣的开发者自行实现解析器，并提交PR。
+
 
 class ExampleParser(BaseParser):
-    """示例视频网站解析器"""
 
     platform: ClassVar[Platform] = Platform(name="example", display_name="示例网站")
 
-    def __init__(self, config: AstrBotConfig, downloader: Downloader):
+    def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
+        self.mycfg = config.parser.example
 
     @handle("ex.short", r"ex\.short/\w+)")
     async def _parse_short_link(self, searched: Match[str]):
-        """解析短链"""
         url = f"https://{searched.group(0)}"
         # 重定向再解析，请确保重定向链接的 handle 存在
         # 比如 url 重定向到 example.com/... 就会调用 _parse 解析
@@ -37,7 +36,7 @@ class ExampleParser(BaseParser):
         video_id = searched.group("video_id")
         url = f"https://api.example.com/video/{video_id}"
         # 2. 请求 API 获取视频信息
-        async with self.client.get(url, headers=self.headers) as resp:
+        async with self.session.get(url, headers=self.headers) as resp:
             if resp.status >= 400:
                 raise ClientError(f"HTTP {resp.status} {resp.reason}")
             data = await resp.json()
@@ -71,7 +70,6 @@ class ExampleParser(BaseParser):
         )
 
 
-"""
 
 # 构建作者信息
 
