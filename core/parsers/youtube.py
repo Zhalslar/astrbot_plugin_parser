@@ -32,11 +32,8 @@ class YouTubeParser(BaseParser):
             self.mycfg.cookies, self.ytb_cookies_file, "youtube.com"
         )
 
-    @handle("youtu.be", r"https?://(?:www\.)?youtu\.be/[A-Za-z\d\._\?%&\+\-=/#]+")
-    @handle(
-        "youtube.com",
-        r"https?://(?:www\.)?youtube\.com/(?:watch|shorts)(?:/[A-Za-z\d_\-]+|\?v=[A-Za-z\d_\-]+)",
-    )
+    @handle("youtu", r"youtu\.be/[A-Za-z\d\._\?%&\+\-=/#]+")
+    @handle("youtube", r"youtube\.com/(?:watch|shorts)(?:/[A-Za-z\d_\-]+|\?v=[A-Za-z\d_\-]+)")
     async def _parse_video(self, searched: re.Match[str]):
         return await self.parse_video(searched)
 
