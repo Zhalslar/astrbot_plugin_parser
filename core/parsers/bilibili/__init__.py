@@ -123,7 +123,7 @@ class BilibiliParser(BaseParser):
     async def _parse_read(self, searched: Match[str]):
         """解析专栏信息"""
         read_id = int(searched.group("read_id"))
-        return await self.parse_read(read_id)
+        return await self.parse_read_with_opus(read_id)
 
     @handle("/opus/", r"bilibili\.com/opus/(?P<opus_id>\d+)")
     async def _parse_opus(self, searched: Match[str]):
@@ -221,14 +221,11 @@ class BilibiliParser(BaseParser):
         """
         from bilibili_api.dynamic import Dynamic
 
-        from .dynamic import DynamicItem
+        from .dynamic import DynamicData
 
-        dynamic = Dynamic(dynamic_id, await self.credential)
+        dynamic_ = Dynamic(dynamic_id, await self.credential)
 
-        # 转换为结构体
-        dynamic_data = convert(await dynamic.get_info(), DynamicItem)
-        dynamic_info = dynamic_data.item
-        # 使用结构体属性提取信息
+        dynamic_info = convert(await dynamic_.get_info(), DynamicData).item
         author = self.create_author(dynamic_info.name, dynamic_info.avatar)
 
         # 下载图片
@@ -256,29 +253,24 @@ class BilibiliParser(BaseParser):
         opus = Opus(opus_id, await self.credential)
         return await self._parse_opus_obj(opus)
 
-    async def parse_read_old(self, read_id: int):
-        """解析专栏信息, 已废弃
 
+    async def parse_read_with_opus(self, read_id: int):
+        """解析专栏信息, 使用 Opus 接口
         Args:
             read_id (int): 专栏 id
         """
         from bilibili_api.article import Article
-
         article = Article(read_id)
         return await self._parse_opus_obj(await article.turn_to_opus())
 
     async def _parse_opus_obj(self, bili_opus: Opus):
         """解析图文动态信息
-
         Args:
             opus_id (int): 图文动态 id
-
         Returns:
             ParseResult: 解析结果
         """
-
         from .opus import ImageNode, OpusItem, TextNode
-
         opus_info = await bili_opus.get_info()
         if not isinstance(opus_info, dict):
             raise ParseException("获取图文动态信息失败")
@@ -286,30 +278,22 @@ class BilibiliParser(BaseParser):
         opus_data = convert(opus_info, OpusItem)
         logger.debug(f"opus_data: {opus_data}")
         author = self.create_author(*opus_data.name_avatar)
-
         # 按顺序处理图文内容（参考 parse_read 的逻辑）
         contents: list[MediaContent] = []
         current_text = ""
-
         for node in opus_data.gen_text_img():
             if isinstance(node, ImageNode):
-                contents.append(
-                    self.create_graphics_content(
-                        node.url, current_text.strip(), node.alt
-                    )
-                )
+                contents.append(self.create_graphics_content(node.url, current_text.strip(), node.alt))
                 current_text = ""
             elif isinstance(node, TextNode):
                 current_text += node.text
-
         return self.result(
             title=opus_data.title,
             author=author,
             timestamp=opus_data.timestamp,
             contents=contents,
             text=current_text.strip(),
-        )
-
+)
     async def parse_live(self, room_id: int):
         """解析直播信息
 
@@ -353,48 +337,6 @@ class BilibiliParser(BaseParser):
             author=author,
         )
 
-    async def parse_read(self, read_id: int):
-        """专栏解析
-
-        Args:
-            read_id (int): 专栏 id
-
-        Returns:
-            texts: list[str], urls: list[str]
-        """
-        from bilibili_api.article import Article
-
-        from .article import ArticleInfo, ImageNode, TextNode
-
-        ar = Article(read_id)
-        # 加载内容
-        await ar.fetch_content()
-        data = ar.json()
-        article_info = convert(data, ArticleInfo)
-        logger.debug(f"article_info: {article_info}")
-
-        contents: list[MediaContent] = []
-        current_text = ""
-        for child in article_info.gen_text_img():
-            if isinstance(child, ImageNode):
-                contents.append(
-                    self.create_graphics_content(
-                        child.url, current_text.strip(), child.alt
-                    )
-                )
-                current_text = ""
-            elif isinstance(child, TextNode):
-                current_text += child.text
-
-        author = self.create_author(*article_info.author_info)
-
-        return self.result(
-            title=article_info.title,
-            timestamp=article_info.timestamp,
-            text=current_text.strip(),
-            author=author,
-            contents=contents,
-        )
 
     async def parse_favlist(self, fav_id: int):
         """解析收藏夹信息
