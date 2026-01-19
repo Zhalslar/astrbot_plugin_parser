@@ -16,7 +16,7 @@ from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
 
 from .core.arbiter import ArbiterContext, EmojiLikeArbiter
 from .core.clean import CacheCleaner
-from .core.config import ParserItem, PluginConfig
+from .core.config import PluginConfig
 from .core.debounce import Debouncer
 from .core.download import Downloader
 from .core.parsers import BaseParser, BilibiliParser
@@ -78,23 +78,15 @@ class ParserPlugin(Star):
         """注册解析器（以 parser.enable 为唯一启用来源）"""
         # 所有 Parser 子类
         all_subclass = BaseParser.get_all_subclass()
+        enabled_platforms = set(self.cfg.parser.enabled_platforms())
 
         enabled_classes: list[type[BaseParser]] = []
         enabled_names: list[str] = []
-
         for cls in all_subclass:
             platform_name = cls.platform.name
 
-            # 配置中不存在该平台 → 视为未启用
-            try:
-                cfg_item: ParserItem = getattr(self.cfg.parser, platform_name)
-            except AttributeError:
-                logger.debug(f"[parser] 平台未配置，跳过: {platform_name}")
-                continue
-
-            # 显式关闭
-            if not cfg_item.enable:
-                logger.debug(f"[parser] 平台已禁用: {platform_name}")
+            if platform_name not in enabled_platforms:
+                logger.debug(f"[parser] 平台未启用或未配置: {platform_name}")
                 continue
 
             enabled_classes.append(cls)

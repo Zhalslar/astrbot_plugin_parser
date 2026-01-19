@@ -47,10 +47,10 @@ class BilibiliParser(BaseParser):
         self._credential: Credential | None = None
 
         self.video_quality = getattr(
-            VideoQuality, self.mycfg.video_quality.upper(), VideoQuality._720P
+            VideoQuality, str(self.mycfg.video_quality).upper(), VideoQuality._720P
         )
         self.codecs = getattr(
-            VideoCodecs, self.mycfg.video_codecs.upper(), VideoCodecs.AVC
+            VideoCodecs, str(self.mycfg.video_codecs).upper(), VideoCodecs.AVC
         )
         self.cookies = self.mycfg.cookies
         self._cookies_file = self.cfg.data_dir / "bilibili_cookies.json"

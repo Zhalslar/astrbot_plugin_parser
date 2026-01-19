@@ -22,15 +22,15 @@ class YouTubeParser(BaseParser):
             raise ValueError("YouTube Parser config not found")
         self.headers.update({"Referer": "https://www.youtube.com/"})
         self.ytb_cookies_file = None
-        if self.mycfg.cookies:
-            self._set_cookies()
+        self._set_cookies()
 
     def _set_cookies(self):
-        self.ytb_cookies_file = self.data_dir / "ytb_cookies.txt"
-        self.ytb_cookies_file.parent.mkdir(parents=True, exist_ok=True)
-        save_cookies_with_netscape(
-            self.mycfg.cookies, self.ytb_cookies_file, "youtube.com"
-        )
+        if self.mycfg.cookies:
+            self.ytb_cookies_file = self.data_dir / "ytb_cookies.txt"
+            self.ytb_cookies_file.parent.mkdir(parents=True, exist_ok=True)
+            save_cookies_with_netscape(
+                self.mycfg.cookies, self.ytb_cookies_file, "youtube.com"
+            )
 
     @handle("youtu", r"youtu\.be/[A-Za-z\d\._\?%&\+\-=/#]+")
     @handle("youtube", r"youtube\.com/(?:watch|shorts)(?:/[A-Za-z\d_\-]+|\?v=[A-Za-z\d_\-]+)")

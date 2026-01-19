@@ -69,7 +69,7 @@ class DouyinParser(BaseParser):
 
         if new_cookies != self.cookies:
             self.cookies = new_cookies
-            self.cfg.save()
+            self.cfg.save_config()
             self._set_cookies(self.cookies)
             logger.debug("[抖音] Cookies 已更新并保存")
         else:
