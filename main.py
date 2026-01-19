@@ -214,7 +214,7 @@ class ParserPlugin(Star):
         umo = event.unified_msg_origin
         if umo not in self.cfg.enabled_sessions:
             self.cfg.enabled_sessions.append(umo)
-            self.cfg.save()
+            self.cfg.save_config()
             yield event.plain_result("解析已开启")
         else:
             yield event.plain_result("解析已开启，无需重复开启")
@@ -226,8 +226,10 @@ class ParserPlugin(Star):
         umo = event.unified_msg_origin
         if umo in self.cfg.enabled_sessions:
             self.cfg.enabled_sessions.remove(umo)
-            self.cfg.save()
+            self.cfg.save_config()
             yield event.plain_result("解析已关闭")
+        elif len(self.cfg.enabled_sessions) == 0:
+            yield event.plain_result("解析白名单为空时，全局开启解析")
         else:
             yield event.plain_result("解析已关闭，无需重复关闭")
 

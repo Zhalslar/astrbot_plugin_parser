@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import zoneinfo
-from collections.abc import MutableMapping
+from collections.abc import Mapping, MutableMapping
+from types import MappingProxyType
 from typing import Any, get_type_hints
 
 from astrbot.api import logger
@@ -75,11 +76,11 @@ class ConfigNode:
             return
         object.__setattr__(self, key, value)
 
-    def raw_data(self) -> MutableMapping[str, Any]:
+    def raw_data(self) -> Mapping[str, Any]:
         """
-        获取底层配置 dict（实际引用，只读语义）
+        底层配置 dict 的只读视图
         """
-        return self._data
+        return MappingProxyType(self._data)
 
     def save_config(self) -> None:
         """
