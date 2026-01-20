@@ -15,8 +15,8 @@ from astrbot.api import logger
 from ..config import PluginConfig
 from ..data import ImageContent, Platform, VideoContent
 from ..download import Downloader
-from ..exception import DownloadException, ParseException
-from ..utils import generate_file_name, safe_unlink, save_cookies_with_netscape
+from ..exception import ParseException
+from ..utils import save_cookies_with_netscape
 from .base import BaseParser, handle
 
 
@@ -58,6 +58,7 @@ class InstagramParser(BaseParser):
             if not cookies:
                 return
             save_cookies_with_netscape(cookies, cookie_file, "instagram.com")
+        logger.debug(f"Saved cookies to {cookie_file}")
 
         self.ig_cookies_file = cookie_file
 
@@ -218,40 +219,6 @@ class InstagramParser(BaseParser):
         return None
 
 
-
-    async def _download_with_ytdlp(
-        self, url: str, output_name: str | None = None
-    ) -> Path:
-        if output_name:
-            output_path = self.cfg.cache_dir / output_name
-        else:
-            output_path = self.cfg.cache_dir / generate_file_name(url, ".mp4")
-        if output_path.exists():
-            return output_path
-        retries = 2
-        opts: dict[str, Any] = {
-            "quiet": True,
-            "outtmpl": str(output_path),
-            "merge_output_format": "mp4",
-            "format": "best[height<=720]/bestvideo[height<=720]+bestaudio/best",
-            "http_headers": {**self.headers, "Referer": "https://www.instagram.com/"},
-        }
-        if self.ig_cookie_header:
-            opts["http_headers"]["Cookie"] = self.ig_cookie_header
-        if self.ig_cookies_file and self.ig_cookies_file.is_file():
-            opts["cookiefile"] = str(self.ig_cookies_file)
-        for attempt in range(retries + 1):
-            try:
-                with yt_dlp.YoutubeDL(opts) as ydl: # type: ignore
-                    await asyncio.to_thread(ydl.download, [url])
-                return output_path
-            except Exception as exc:
-                await safe_unlink(output_path)
-                if attempt < retries:
-                    await asyncio.sleep(1 + attempt)
-                    continue
-                raise ParseException("媒体下载失败") from exc
-        raise DownloadException("媒体下载失败")
 
     @staticmethod
     def _iter_entries(info: dict[str, Any]) -> list[dict[str, Any]]:
@@ -473,8 +440,11 @@ class InstagramParser(BaseParser):
                     contents.append(ImageContent(image_task))
                 return self.result(contents=contents, url=final_url)
             try:
-                video_task = await self._download_with_ytdlp(
-                    final_url, f"{base_prefix}_ydlp.mp4"
+                video_task = await self.downloader.ytdlp_download_video(
+                    final_url,
+                    headers=self.headers,
+                    proxy=self.proxy,
+                    format="best[height<=720]/bestvideo[height<=720]+bestaudio/best",
                 )
                 contents.append(VideoContent(video_task, None, 0))
                 return self.result(contents=contents, url=final_url)
@@ -486,8 +456,6 @@ class InstagramParser(BaseParser):
         meta_entry: dict[str, Any] | None = None
         fallback_video_tried = False
         for idx, entry in enumerate(entries):
-            entry_id = self._entry_identity(entry, str(idx))
-            base_name = f"{base_prefix}_{entry_id}"
             formats = entry.get("formats")
             video_url, audio_url = self._select_media_urls(entry)
             if not video_url and isinstance(formats, list) and formats:
@@ -535,8 +503,11 @@ class InstagramParser(BaseParser):
 
                     fallback_video_tried = True
                     try:
-                        video_task = await self._download_with_ytdlp(
-                            final_url, f"{base_name}_ydlp.mp4"
+                        video_task = await self.downloader.ytdlp_download_video(
+                            final_url,
+                            headers=self.headers,
+                            proxy=self.proxy,
+                            format="best[height<=720]/bestvideo[height<=720]+bestaudio/best",
                         )
                         contents.append(VideoContent(video_task, cover_task, duration))
                         if meta_entry is None:
@@ -554,8 +525,11 @@ class InstagramParser(BaseParser):
                 try:
                     duration = float(meta.get("duration") or 0)
                     if isinstance(fallback_url, str) and fallback_url:
-                        video_task = await self._download_with_ytdlp(
-                            fallback_url, f"{base_prefix}_ydlp.mp4"
+                        video_task = await self.downloader.ytdlp_download_video(
+                            fallback_url,
+                            headers=self.headers,
+                            proxy=self.proxy,
+                            format="best[height<=720]/bestvideo[height<=720]+bestaudio/best",
                         )
                         contents.append(VideoContent(video_task, None, duration))
                 except ParseException:

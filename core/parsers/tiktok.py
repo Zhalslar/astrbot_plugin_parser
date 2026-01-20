@@ -13,6 +13,9 @@ class TikTokParser(BaseParser):
 
     def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
+        self.headers.update(
+            {"Origin": "https://www.tiktok.com", "Referer": "https://www.tiktok.com/"}
+        )
         self.mycfg = config.parser.tiktok
 
     @handle("tiktok.com", r"(www|vt|vm)\.tiktok\.com/[A-Za-z0-9._?%&+\-=/#@]*")
@@ -24,11 +27,17 @@ class TikTokParser(BaseParser):
             url = await self.get_redirect_url(url)
 
         # 获取视频信息
-        video_info = await self.downloader.ytdlp_extract_info(url, headers=self.headers, proxy=self.proxy)
+        video_info = await self.downloader.ytdlp_extract_info(
+            url, headers=self.headers, proxy=self.proxy
+        )
 
         # 下载封面和视频
-        cover = self.downloader.download_img(video_info.thumbnail, proxy=self.proxy)
-        video = self.downloader.download_video(url, use_ytdlp=True, proxy=self.proxy)
+        cover = self.downloader.download_img(
+            url=video_info.thumbnail, headers=self.headers, proxy=self.proxy
+        )
+        video = self.downloader.ytdlp_download_video(
+            url, headers=self.headers, proxy=self.proxy, format="best"
+        )
 
         return self.result(
             title=video_info.title,

@@ -33,7 +33,10 @@ class YouTubeParser(BaseParser):
             )
 
     @handle("youtu", r"youtu\.be/[A-Za-z\d\._\?%&\+\-=/#]+")
-    @handle("youtube", r"youtube\.com/(?:watch|shorts)(?:/[A-Za-z\d_\-]+|\?v=[A-Za-z\d_\-]+)")
+    @handle(
+        "youtube",
+        r"youtube\.com/(?:watch|shorts)(?:/[A-Za-z\d_\-]+|\?v=[A-Za-z\d_\-]+)",
+    )
     async def _parse_video(self, searched: re.Match[str]):
         return await self.parse_video(searched)
 
@@ -42,18 +45,22 @@ class YouTubeParser(BaseParser):
         url = searched.group(0)
 
         video_info = await self.downloader.ytdlp_extract_info(
-            url, cookiefile=self.ytb_cookies_file, headers=self.headers, proxy=self.proxy
+            url,
+            cookiefile=self.ytb_cookies_file,
+            headers=self.headers,
+            proxy=self.proxy,
         )
         author = await self._fetch_author_info(video_info.channel_id)
 
         contents = []
         if video_info.duration <= self.cfg.max_duration:
-            video = self.downloader.download_video(
+            video = self.downloader.ytdlp_download_video(
                 url,
-                use_ytdlp=True,
                 cookiefile=self.ytb_cookies_file,
                 headers=self.headers,
                 proxy=self.proxy,
+                format="bv*[height<=720]+ba/b[height<=720]",
+                node = True
             )
             contents.append(
                 self.create_video_content(
@@ -80,7 +87,10 @@ class YouTubeParser(BaseParser):
         """获取油管的音频(需加ym前缀)"""
         url = searched.group("url")
         video_info = await self.downloader.ytdlp_extract_info(
-            url, self.ytb_cookies_file, headers=self.headers, proxy=self.proxy
+            url,
+            cookiefile=self.ytb_cookies_file,
+            headers=self.headers,
+            proxy=self.proxy,
         )
         author = await self._fetch_author_info(video_info.channel_id)
 
@@ -88,9 +98,8 @@ class YouTubeParser(BaseParser):
         contents.extend(self.create_image_contents([video_info.thumbnail]))
 
         if video_info.duration <= self.cfg.max_duration:
-            audio_task = self.downloader.download_audio(
+            audio_task = self.downloader.ytdlp_download_audio(
                 url,
-                use_ytdlp=True,
                 cookiefile=self.ytb_cookies_file,
                 headers=self.headers,
                 proxy=self.proxy,

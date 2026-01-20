@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import zoneinfo
 from collections.abc import Mapping, MutableMapping
-from types import MappingProxyType
-from typing import Any, get_type_hints
+from types import MappingProxyType, UnionType
+from typing import Any, Union, get_args, get_origin, get_type_hints
 
 from astrbot.api import logger
 from astrbot.core.config.astrbot_config import AstrBotConfig
@@ -11,6 +11,7 @@ from astrbot.core.star.context import Context
 from astrbot.core.star.star_tools import StarTools
 
 # ================ 通用基础设施 ==================
+
 
 class ConfigNode:
     """
@@ -39,13 +40,25 @@ class ConfigNode:
             {k for k in cls._schema() if not k.startswith("_")},
         )
 
+    @staticmethod
+    def _is_optional(tp: type) -> bool:
+        if get_origin(tp) in (Union, UnionType):
+            return type(None) in get_args(tp)
+        return False
+
     def __init__(self, data: MutableMapping[str, Any]):
         object.__setattr__(self, "_data", data)
         object.__setattr__(self, "_children", {})
-        for key in self._fields():
-            if key not in data and not hasattr(self.__class__, key):
-                logger.warning(f"[config:{self.__class__.__name__}] 缺少字段: {key}")
+        for key, tp in self._schema().items():
+            if key.startswith("_"):
                 continue
+            if key in data:
+                continue
+            if hasattr(self.__class__, key):
+                continue
+            if self._is_optional(tp):
+                continue
+            logger.warning(f"[config:{self.__class__.__name__}] 缺少字段: {key}")
 
     def __getattr__(self, key: str) -> Any:
         if key in self._fields():
@@ -135,13 +148,14 @@ class ConfigNodeContainer:
 
 # ================ 插件自定义配置 ==================
 
+
 class ParserItem(ConfigNode):
     __template_key: str
     enable: bool
     use_proxy: bool
-    cookies: str | None = None
-    video_codecs: str | None = None
-    video_quality: str | None = None
+    cookies: str | None
+    video_codecs: str | None
+    video_quality: str | None
 
 
 class ParserConfig(ConfigNodeContainer):
@@ -160,8 +174,10 @@ class ParserConfig(ConfigNodeContainer):
 
     def __init__(self, nodes: list[dict[str, Any]]):
         super().__init__(nodes, item_cls=ParserItem)
+
     def platforms(self) -> list[str]:
         return list(self._nodes.keys())
+
     def enabled_platforms(self) -> list[str]:
         return [k for k, v in self._nodes.items() if getattr(v, "enable", True)]
 
@@ -213,5 +229,3 @@ class PluginConfig(ConfigNode):
         self.timezone = (
             zoneinfo.ZoneInfo(tz) if tz else zoneinfo.ZoneInfo("Asia/Shanghai")
         )
-
-

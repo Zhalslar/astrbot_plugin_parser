@@ -76,6 +76,10 @@ class Downloader:
             timeout=ClientTimeout(total=self.cfg.download_timeout)
         )
 
+    async def close(self):
+        """关闭网络客户端"""
+        await self.client.close()
+
     @auto_task
     async def streamd(
         self,
@@ -174,13 +178,8 @@ class Downloader:
         *,
         video_name: str | None = None,
         headers: dict[str, str] | None = None,
-        use_ytdlp: bool = False,
-        cookiefile: Path | None = None,
-        proxy: str | None  = None,
+        proxy: str | None = None,
     ) -> Path:
-        if use_ytdlp:
-            return await self._ytdlp_download_video(url, cookiefile, headers, proxy)
-
         if video_name is None:
             video_name = generate_file_name(url, ".mp4")
         return await self.streamd(
@@ -194,13 +193,8 @@ class Downloader:
         *,
         audio_name: str | None = None,
         headers: dict[str, str] | None = None,
-        use_ytdlp: bool = False,
-        cookiefile: Path | None = None,
         proxy: str | None = None,
     ) -> Path:
-        if use_ytdlp:
-            return await self._ytdlp_download_audio(url, cookiefile, headers, proxy)
-
         if audio_name is None:
             audio_name = generate_file_name(url, ".mp3")
         return await self.streamd(
@@ -233,9 +227,7 @@ class Downloader:
     ) -> Path:
         if img_name is None:
             img_name = generate_file_name(url, ".jpg")
-        return await self.streamd(
-            url, file_name=img_name, headers=headers, proxy=proxy
-        )
+        return await self.streamd(url, file_name=img_name, headers=headers, proxy=proxy)
 
     async def download_imgs_without_raise(
         self,
@@ -245,10 +237,7 @@ class Downloader:
         proxy: str | None | object = ...,
     ) -> list[Path]:
         paths_or_errs = await gather(
-            *[
-                self.download_img(url, headers=headers, proxy=proxy)
-                for url in urls
-            ],
+            *[self.download_img(url, headers=headers, proxy=proxy) for url in urls],
             return_exceptions=True,
         )
         return [p for p in paths_or_errs if isinstance(p, Path)]
@@ -273,29 +262,29 @@ class Downloader:
         await merge_av(v_path=v_path, a_path=a_path, output_path=output_path)
         return output_path
 
-    # region -------------------- 私有：yt-dlp --------------------
-
     async def ytdlp_extract_info(
         self,
         url: str,
+        *,
         cookiefile: Path | None = None,
         headers: dict[str, str] | None = None,
         proxy: str | None = None,
+        format: str | None = None,
     ) -> VideoInfo:
         if (info := self.info_cache.get(url)) is not None:
             return info
         opts = {
             "quiet": True,
             "skip_download": True,
-            "force_generic_extractor": True,
-            "cookiefile": None,
             "http_headers": headers or self.default_headers,
         }
         if proxy:
             opts["proxy"] = proxy
         if cookiefile and cookiefile.is_file():
             opts["cookiefile"] = str(cookiefile)
-        with yt_dlp.YoutubeDL(opts) as ydl: # type: ignore
+        if format:
+            opts["format"] = format
+        with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore
             raw = await to_thread(ydl.extract_info, url, download=False)
             if not raw:
                 raise ParseException("获取视频信息失败")
@@ -303,14 +292,47 @@ class Downloader:
         self.info_cache[url] = info
         return info
 
-    async def _ytdlp_download_video(
+    async def ytdlp_extract_raw(
         self,
         url: str,
+        *,
         cookiefile: Path | None = None,
         headers: dict[str, str] | None = None,
         proxy: str | None = None,
+        format: str | None = None,
+    ) -> dict[str, Any]:
+        opts = {
+            "quiet": True,
+            "skip_download": True,
+            "http_headers": headers or self.default_headers,
+        }
+        if proxy:
+            opts["proxy"] = proxy
+        if cookiefile and cookiefile.is_file():
+            opts["cookiefile"] = str(cookiefile)
+        if format:
+            opts["format"] = format
+
+        with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore
+            raw = await to_thread(ydl.extract_info, url, download=False)
+            if not isinstance(raw, dict):
+                raise ParseException("yt-dlp 返回数据异常")
+            return raw  # type: ignore
+
+    @auto_task
+    async def ytdlp_download_video(
+        self,
+        url: str,
+        *,
+        cookiefile: Path | None = None,
+        headers: dict[str, str] | None = None,
+        proxy: str | None = None,
+        format: str | None = None,
+        node: bool = False,
     ) -> Path:
-        info = await self.ytdlp_extract_info(url, cookiefile, headers, proxy)
+        info = await self.ytdlp_extract_info(
+            url, cookiefile=cookiefile, headers=headers, proxy=proxy
+        )
         if info.duration > self.cfg.max_duration:
             raise DurationLimitException
 
@@ -322,28 +344,33 @@ class Downloader:
             "outtmpl": str(video_path),
             "merge_output_format": "mp4",
             # "format": f"bv[filesize<={info.duration // 10 + 10}M]+ba/b[filesize<={info.duration // 8 + 10}M]",
-            "format": "bv*[height<=720]+ba/b[height<=720]",
+            # "format": "bv*[height<=720]+ba/b[height<=720]",
+            "format": format or "best",
             "postprocessors": [
                 {"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}
             ],
-            "cookiefile": None,
             "http_headers": headers or self.default_headers,
         }
         if proxy:
             opts["proxy"] = proxy
         if cookiefile and cookiefile.is_file():
             opts["cookiefile"] = str(cookiefile)
+        if node:
+            opts["js_runtimes"] = {"node": {}}
 
-        with yt_dlp.YoutubeDL(opts) as ydl: # type: ignore
+        with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore
             await to_thread(ydl.download, [url])
         return video_path
 
-    async def _ytdlp_download_audio(
+    @auto_task
+    async def ytdlp_download_audio(
         self,
         url: str,
+        *,
         cookiefile: Path | None,
         headers: dict[str, str] | None = None,
         proxy: str | None = None,
+        format: str | None = None,
     ) -> Path:
         file_name = generate_file_name(url)
         audio_path = self.cfg.cache_dir / f"{file_name}.flac"
@@ -352,7 +379,7 @@ class Downloader:
 
         opts = {
             "outtmpl": str(self.cfg.cache_dir / file_name) + ".%(ext)s",
-            "format": "bestaudio/best",
+            "format": format or "bestaudio/best",
             "postprocessors": [
                 {
                     "key": "FFmpegExtractAudio",
@@ -368,10 +395,6 @@ class Downloader:
         if cookiefile and cookiefile.is_file():
             opts["cookiefile"] = str(cookiefile)
 
-        with yt_dlp.YoutubeDL(opts) as ydl: # type: ignore
+        with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore
             await to_thread(ydl.download, [url])
         return audio_path
-
-    async def close(self):
-        """关闭网络客户端"""
-        await self.client.close()
