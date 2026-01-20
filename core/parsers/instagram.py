@@ -118,9 +118,7 @@ class InstagramParser(BaseParser):
 
     async def _gallery_dl_image_urls(self, url: str) -> list[str]:
         cmd = [sys.executable, "-m", "gallery_dl", "-j"]
-        print(self.ig_cookies_file)
         if self.ig_cookies_file and self.ig_cookies_file.is_file():
-            print(self.ig_cookies_file)
             cmd += ["--cookies", str(self.ig_cookies_file)]
         cmd.append(url)
 
