@@ -10,8 +10,6 @@ from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.star.context import Context
 from astrbot.core.star.star_tools import StarTools
 
-# ================ 通用基础设施 ==================
-
 
 class ConfigNode:
     """
@@ -26,8 +24,6 @@ class ConfigNode:
 
     _SCHEMA_CACHE: dict[type, dict[str, type]] = {}
     _FIELDS_CACHE: dict[type, set[str]] = {}
-
-    # ---------- schema ----------
 
     @classmethod
     def _schema(cls) -> dict[str, type]:

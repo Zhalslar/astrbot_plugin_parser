@@ -2,7 +2,6 @@
 
 import asyncio
 import re
-from concurrent.futures import ThreadPoolExecutor
 
 from astrbot.api import logger
 from astrbot.api.event import filter
@@ -28,9 +27,7 @@ from .core.utils import extract_json_url
 class ParserPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-        self.context = context
-        self.cfg = PluginConfig(config, context)
-        self._executor = ThreadPoolExecutor(max_workers=2)
+        self.cfg = PluginConfig(config, context=context)
 
         # 关键词 -> Parser 映射
         self.parser_map: dict[str, BaseParser] = {}
@@ -238,7 +235,7 @@ class ParserPlugin(Star):
     async def login_bilibili(self, event: AstrMessageEvent):
         """扫码登录B站"""
         parser: BilibiliParser = self._get_parser_by_type(BilibiliParser)  # type: ignore
-        qrcode = await parser.login_with_qrcode()
+        qrcode = await parser.login.login_with_qrcode()
         yield event.chain_result([Image.fromBytes(qrcode)])
-        async for msg in parser.check_qr_state():
+        async for msg in parser.login.check_qr_state():
             yield event.plain_result(msg)
