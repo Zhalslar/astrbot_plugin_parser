@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import time
 from dataclasses import dataclass
@@ -112,7 +112,14 @@ class CookieJar:
             item = item.strip()
             if not item or "=" not in item:
                 continue
-            name, value = item.split("=", 1)
+
+            parts = item.split("=", 1)
+            if len(parts) != 2:
+                continue
+
+            name, value = parts
+            if not name.strip():
+                continue
             self.cookies.append(
                 Cookie(
                     domain=f".{self.domain}",
@@ -169,7 +176,7 @@ class CookieJar:
                     domain=c.domain,
                     path=c.path,
                     name=c.name,
-                    value=c.value, # type: ignore
+                    value=c.value or "",
                     secure=c.secure,
                     expires=c.expires or 0,
                 )
@@ -184,7 +191,9 @@ class CookieJar:
         if not set_cookie_headers:
             return
 
-        logger.debug(f"开始更新 cookies，收到 {len(set_cookie_headers)} 个 Set-Cookie 头")
+        logger.debug(
+            f"开始更新 cookies，收到 {len(set_cookie_headers)} 个 Set-Cookie 头"
+        )
 
         updated = False
         updated_items = []
@@ -212,11 +221,15 @@ class CookieJar:
                     try:
                         expires = int(
                             time.mktime(
-                                time.strptime(morsel["expires"], "%a, %d-%b-%Y %H:%M:%S %Z")
+                                time.strptime(
+                                    morsel["expires"], "%a, %d-%b-%Y %H:%M:%S %Z"
+                                )
                             )
                         )
                     except Exception as e:
-                        logger.debug(f"解析 expires 失败: {morsel['expires']}，错误: {e}")
+                        logger.debug(
+                            f"解析 expires 失败: {morsel['expires']}，错误: {e}"
+                        )
                         expires = 0
 
                 existing = next(
