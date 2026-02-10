@@ -312,7 +312,7 @@ class Renderer:
             base_url=self.cfg.emoji_cdn,
             style=self.cfg.emoji_style,
             cache_dir=self.cfg.cache_dir / self._EMOJIS,
-            enable_tqdm=True,
+            show_progress=True,
         )
         """Emoji Source"""
 
