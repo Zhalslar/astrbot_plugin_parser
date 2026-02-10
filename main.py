@@ -5,8 +5,8 @@ import re
 
 from astrbot.api import logger
 from astrbot.api.event import filter
-from astrbot.api.star import Context, Star
-from astrbot.core import AstrBotConfig
+from astrbot.api.star import Context, Star, register
+from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.message.components import At, Image, Json
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
@@ -24,6 +24,7 @@ from .core.sender import MessageSender
 from .core.utils import extract_json_url
 
 
+@register("astrbot_plugin_parser", "Zhalslar", "万能解析插件", "1.0.0")
 class ParserPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
