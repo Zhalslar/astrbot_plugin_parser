@@ -157,6 +157,7 @@ class ParserItem(ConfigNode):
     def name(self) -> str:
         return self._data.get("__template_key")
 
+
 class ParserConfig(ConfigNodeContainer):
     acfun: ParserItem
     bilibili: ParserItem
@@ -200,8 +201,6 @@ class PluginConfig(ConfigNode):
 
     proxy: str | None
 
-    emoji_cdn: str
-    emoji_style: str
     clean_cron: str
 
     parsers_template: list[dict[str, Any]]
@@ -221,7 +220,6 @@ class PluginConfig(ConfigNode):
         self.cookie_dir = self.data_dir / "cookies"
         self.cookie_dir.mkdir(parents=True, exist_ok=True)
 
-
         # ---------- 派生字段 ----------
         self.proxy = self.proxy or None
         self.max_duration = self.source_max_minute * 60
@@ -231,3 +229,7 @@ class PluginConfig(ConfigNode):
         self.timezone = (
             zoneinfo.ZoneInfo(tz) if tz else zoneinfo.ZoneInfo("Asia/Shanghai")
         )
+
+        # ---------- 内置配置 ----------
+        self.emoji_cdn = "https://cdn.jsdelivr.net/npm/emoji-datasource-facebook@14.0.0/img/facebook/64/"
+        self.emoji_style = "FACEBOOK"  # 可选：APPLE、FACEBOOK、GOOGLE、TWITTER
