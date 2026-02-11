@@ -131,16 +131,16 @@
                         "type": "bool",
                         "default": true
                     },
-                    "cookies": {
-                        "description": "Bilibili Cookies",
-                        "hint": "选填, 用于解析的登录Cookies，留空则使用无登录状态",
-                        "type": "text",
-                        "default": ""
-                    },
                     "use_proxy": {
                         "description": "使用代理",
                         "type": "bool",
                         "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
                     },
                     "video_codecs": {
                         "description": "B站视频编码",
@@ -170,6 +170,19 @@
                             "_8K",
                             "AI_REPAIR"
                         ],
+                        "labels": [
+                            "360P 流畅",
+                            "480P 标清",
+                            "720P 高清",
+                            "1080P 全高清",
+                            "1080P+ 增强版",
+                            "1080P 60帧",
+                            "4K 超高清",
+                            "HDR 高动态范围",
+                            "杜比视界 Dolby Vision",
+                            "8K 超高清",
+                            "AI修复"
+                        ],
                         "default": "_720P"
                     }
                 }
@@ -182,16 +195,16 @@
                         "type": "bool",
                         "default": true
                     },
-                    "cookies": {
-                        "description": "抖音 Cookies",
-                        "hint": "选填, 用于解析的登录Cookies，留空则使用无登录状态。经常下载失败时可以试着填一下",
-                        "type": "text",
-                        "default": ""
-                    },
                     "use_proxy": {
                         "description": "使用代理",
                         "type": "bool",
                         "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
                     }
                 }
             },
@@ -207,6 +220,12 @@
                         "description": "使用代理",
                         "type": "bool",
                         "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
                     }
                 }
             },
@@ -222,6 +241,12 @@
                         "description": "使用代理",
                         "type": "bool",
                         "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
                     }
                 }
             },
@@ -233,16 +258,16 @@
                         "type": "bool",
                         "default": true
                     },
-                    "cookies": {
-                        "description": "小红书 Cookies",
-                        "hint": "选填, 部分链接解析有水印，填充Cookies可去除水印",
-                        "type": "text",
-                        "default": ""
-                    },
                     "use_proxy": {
                         "description": "使用代理",
                         "type": "bool",
                         "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填, 小红书部分链接解析有水印, 填充Cookies可去除水印",
+                        "type": "text",
+                        "default": ""
                     }
                 }
             },
@@ -254,16 +279,16 @@
                         "type": "bool",
                         "default": true
                     },
-                    "cookies": {
-                        "description": "Tiktok Cookies",
-                        "hint": "选填",
-                        "type": "text",
-                        "default": ""
-                    },
                     "use_proxy": {
                         "description": "使用代理",
                         "type": "bool",
                         "default": true
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
                     }
                 }
             },
@@ -275,16 +300,16 @@
                         "type": "bool",
                         "default": true
                     },
-                    "cookies": {
-                        "description": "油管 Cookies",
-                        "hint": "必填！！用于YouTube解析的登录Cookies，不填一般无法成功下载油管的视频，同时注意油管Cookie有效期较短",
-                        "type": "text",
-                        "default": ""
-                    },
                     "use_proxy": {
                         "description": "使用代理",
                         "type": "bool",
                         "default": true
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "必填! 同时注意油管Cookie有效期较短",
+                        "type": "text",
+                        "default": ""
                     }
                 }
             },
@@ -296,16 +321,16 @@
                         "type": "bool",
                         "default": true
                     },
-                    "cookies": {
-                        "description": "Instagram Cookies",
-                        "hint": "用于Instagram解析的登录Cookies，留空则使用无登录状态",
-                        "type": "text",
-                        "default": ""
-                    },
                     "use_proxy": {
                         "description": "使用代理",
                         "type": "bool",
                         "default": true
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "必填",
+                        "type": "text",
+                        "default": ""
                     }
                 }
             },
@@ -317,16 +342,16 @@
                         "type": "bool",
                         "default": true
                     },
-                    "cookies": {
-                        "description": "X Cookies",
-                        "hint": "选填",
-                        "type": "text",
-                        "default": ""
-                    },
                     "use_proxy": {
                         "description": "使用代理",
                         "type": "bool",
                         "default": true
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
                     }
                 }
             },
@@ -338,16 +363,16 @@
                         "type": "bool",
                         "default": true
                     },
-                    "cookies": {
-                        "description": "Acfun Cookies",
-                        "hint": "选填",
-                        "type": "text",
-                        "default": ""
-                    },
                     "use_proxy": {
                         "description": "使用代理",
                         "type": "bool",
                         "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
                     }
                 }
             },
@@ -359,16 +384,16 @@
                         "type": "bool",
                         "default": true
                     },
-                    "cookies": {
-                        "description": "网易云 Cookies",
-                        "hint": "选填",
-                        "type": "text",
-                        "default": ""
-                    },
                     "use_proxy": {
                         "description": "使用代理",
                         "type": "bool",
                         "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
                     }
                 }
             },
@@ -380,16 +405,16 @@
                         "type": "bool",
                         "default": true
                     },
-                    "cookies": {
-                        "description": "NGA Cookies",
-                        "hint": "选填",
-                        "type": "text",
-                        "default": ""
-                    },
                     "use_proxy": {
                         "description": "使用代理",
                         "type": "bool",
                         "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
                     }
                 }
             }

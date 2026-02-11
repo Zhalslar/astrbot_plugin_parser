@@ -1,0 +1,34 @@
+﻿[
+  {
+    "__template_key": "bilibili",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": "",
+    "video_codecs": "AVC",
+    "video_quality": "_720P"
+  },
+  {
+    "__template_key": "douyin",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": ""
+  },
+  {
+    "__template_key": "kuaishou",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": ""
+  },
+  {
+    "__template_key": "weibo",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": ""
+  },
+  {
+    "__template_key": "xhs",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": ""
+  }
+]
