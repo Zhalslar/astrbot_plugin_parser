@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 import zoneinfo
 from collections.abc import Mapping, MutableMapping
 from types import MappingProxyType, UnionType
@@ -9,6 +11,7 @@ from astrbot.api import logger
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.star.context import Context
 from astrbot.core.star.star_tools import StarTools
+from astrbot.core.utils.astrbot_path import get_astrbot_plugin_path
 
 
 class ConfigNode:
@@ -205,20 +208,16 @@ class PluginConfig(ConfigNode):
 
     parsers_template: list[dict[str, Any]]
 
+    _plugin_name = "astrbot_plugin_parser"
+
     def __init__(self, config: AstrBotConfig, context: Context):
         super().__init__(config)
         self.context = context
         self.admins_id = self.context.get_config().get("admins_id", [])
 
-        # ---------- Parser ----------
-        self.parser = ParserConfig(self.parsers_template)
-
-        # ---------- 路径 ----------
-        self.data_dir = StarTools.get_data_dir("astrbot_plugin_parser")
-        self.cache_dir = self.data_dir / "cache"
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.cookie_dir = self.data_dir / "cookies"
-        self.cookie_dir.mkdir(parents=True, exist_ok=True)
+        # ---------- 内置配置 ----------
+        self.emoji_cdn = "https://cdn.jsdelivr.net/npm/emoji-datasource-facebook@14.0.0/img/facebook/64/"
+        self.emoji_style = "FACEBOOK"  # 可选：APPLE、FACEBOOK、GOOGLE、TWITTER
 
         # ---------- 派生字段 ----------
         self.proxy = self.proxy or None
@@ -230,6 +229,31 @@ class PluginConfig(ConfigNode):
             zoneinfo.ZoneInfo(tz) if tz else zoneinfo.ZoneInfo("Asia/Shanghai")
         )
 
-        # ---------- 内置配置 ----------
-        self.emoji_cdn = "https://cdn.jsdelivr.net/npm/emoji-datasource-facebook@14.0.0/img/facebook/64/"
-        self.emoji_style = "FACEBOOK"  # 可选：APPLE、FACEBOOK、GOOGLE、TWITTER
+        # ---------- 路径 ----------
+        self.data_dir = StarTools.get_data_dir(self._plugin_name)
+        self.plugin_dir = Path(get_astrbot_plugin_path()) / self._plugin_name
+        self.cache_dir = self.data_dir / "cache"
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.cookie_dir = self.data_dir / "cookies"
+        self.cookie_dir.mkdir(parents=True, exist_ok=True)
+        self.default_template_file = self.plugin_dir / "default_template.json"
+
+        # ---------- Parser ----------
+        if not self.parsers_template:
+            self.parsers_template[:] = self.load_parser_template(
+                self.default_template_file
+            )
+            self.save_config()
+
+        self.parser = ParserConfig(self.parsers_template)
+
+    @staticmethod
+    def load_parser_template(file: Path) -> list[dict[str, Any]]:
+        try:
+            with file.open(encoding="utf-8-sig") as f:
+                template = json.loads(f.read())
+                logger.info(f"[parser] 加载模板成功: {file}")
+                return template
+        except Exception as e:
+            logger.error(f"[parser] 加载模板失败: {e}")
+            return []
