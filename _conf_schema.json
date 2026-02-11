@@ -112,24 +112,6 @@
         "type": "string",
         "default": ""
     },
-    "emoji_cdn": {
-        "description": "Pilmoji 表情 CDN",
-        "hint": "渲染表情使用的 CDN 地址，一般无需修改",
-        "type": "string",
-        "default": "https://cdn.jsdelivr.net/npm/emoji-datasource-facebook@14.0.0/img/facebook/64/"
-    },
-    "emoji_style": {
-        "description": "Pilmoji 表情样式",
-        "hint": "可选：APPLE、FACEBOOK、GOOGLE、TWITTER",
-        "type": "string",
-        "options": [
-            "APPLE",
-            "FACEBOOK",
-            "GOOGLE",
-            "TWITTER"
-        ],
-        "default": "FACEBOOK"
-    },
     "clean_cron": {
         "description": "自动清理缓存的触发周期",
         "hint": "使用 Cron 表达式（分 时 日 月 周）定义。例如：“30 2 * * *” 表示每天 2:30 。留空表示禁用自动清理",

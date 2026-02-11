@@ -3,7 +3,8 @@
 tqdm>=4.67.1,<5.0.0
 curl_cffi>=0.13.0,<1.0.0,!=0.14.0
 msgspec>=0.20.0,<1.0.0
-apilmoji[tqdm]>=0.2.3,<1.0.0
+apilmoji[tqdm]>=0.3.0,<1.0.0
 bilibili-api-python>=17.4.1,<18.0.0
 yt-dlp[default]>=2025.12.8
 gallery-dl>=1.31.2
+
