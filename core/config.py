@@ -186,7 +186,9 @@ class ParserConfig(ConfigNodeContainer):
 
 
 class PluginConfig(ConfigNode):
-    enabled_sessions: list[str]
+    whitelist: list[str]
+    blacklist: list[str]
+
     arbiter: bool
     debounce_interval: int
 
@@ -257,3 +259,14 @@ class PluginConfig(ConfigNode):
         except Exception as e:
             logger.error(f"[parser] 加载模板失败: {e}")
             return []
+
+    def add_blacklist(self, umo: str):
+        if umo not in self.blacklist:
+            self.blacklist.append(umo)
+            self.save_config()
+
+    def remove_blacklist(self, umo: str):
+        if umo in self.blacklist:
+            self.blacklist.remove(umo)
+            self.save_config()
+
