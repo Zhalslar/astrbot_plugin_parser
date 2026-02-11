@@ -28,30 +28,23 @@ class ParserPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.cfg = PluginConfig(config, context=context)
-
+        # 渲染器
+        self.renderer = Renderer(self.cfg)
+        # 下载器
+        self.downloader = Downloader(self.cfg)
+        # 防抖器
+        self.debouncer = Debouncer(self.cfg)
+        # 仲裁器
+        self.arbiter = EmojiLikeArbiter()
+        # 消息发送器
+        self.sender = MessageSender(self.cfg, self.renderer)
+        # 缓存清理器
+        self.cleaner = CacheCleaner(self.cfg)
         # 关键词 -> Parser 映射
         self.parser_map: dict[str, BaseParser] = {}
-
         # 关键词 -> 正则 列表
         self.key_pattern_list: list[tuple[str, re.Pattern[str]]] = []
 
-        # 渲染器
-        self.renderer = Renderer(self.cfg)
-
-        # 下载器
-        self.downloader = Downloader(self.cfg)
-
-        # 防抖器
-        self.debouncer = Debouncer(self.cfg)
-
-        # 仲裁器
-        self.arbiter = EmojiLikeArbiter()
-
-        # 消息发送器
-        self.sender = MessageSender(self.cfg, self.renderer)
-
-        # 缓存清理器
-        self.cleaner = CacheCleaner(self.cfg)
 
     async def initialize(self):
         """加载、重载插件时触发"""
@@ -123,13 +116,12 @@ class ParserPlugin(Star):
         """消息的统一入口"""
         umo = event.unified_msg_origin
 
-        # 非管理员，没唤醒，启用列表不为空时, 进行会话过滤
-        if (
-            not event.is_admin()
-            and not event.is_at_or_wake_command
-            and self.cfg.enabled_sessions
-            and umo not in self.cfg.enabled_sessions
-        ):
+        # 白名单
+        if self.cfg.whitelist and umo not in self.cfg.whitelist:
+            return
+
+        # 黑名单
+        if self.cfg.blacklist and umo in self.cfg.blacklist:
             return
 
         # 消息链
@@ -209,26 +201,16 @@ class ParserPlugin(Star):
     async def open_parser(self, event: AstrMessageEvent):
         """开启当前会话的解析"""
         umo = event.unified_msg_origin
-        if umo not in self.cfg.enabled_sessions:
-            self.cfg.enabled_sessions.append(umo)
-            self.cfg.save_config()
-            yield event.plain_result("解析已开启")
-        else:
-            yield event.plain_result("解析已开启，无需重复开启")
+        self.cfg.remove_blacklist(umo)
+        yield event.plain_result("当前会话的解析已开启")
 
     @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("关闭解析")
     async def close_parser(self, event: AstrMessageEvent):
         """关闭当前会话的解析"""
         umo = event.unified_msg_origin
-        if umo in self.cfg.enabled_sessions:
-            self.cfg.enabled_sessions.remove(umo)
-            self.cfg.save_config()
-            yield event.plain_result("解析已关闭")
-        elif len(self.cfg.enabled_sessions) == 0:
-            yield event.plain_result("解析白名单为空时，全局开启解析")
-        else:
-            yield event.plain_result("解析已关闭，无需重复关闭")
+        self.cfg.add_blacklist(umo)
+        yield event.plain_result("当前会话的解析已关闭")
 
     @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("登录B站", alias={"blogin", "登录b站"})
