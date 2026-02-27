@@ -75,8 +75,17 @@ class VideoInfo(Struct):
         """
         格式化视频信息
         """
+        def format_duration(seconds: int) -> str:
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            secs = seconds % 60
+            if hours > 0:
+                return f"{hours}:{minutes:02d}:{secs:02d}"
+            return f"{minutes}:{secs:02d}"
+
         # 定义需要展示的数据及其显示名称
         stats_mapping = [
+            ("⏳", format_duration(self.duration)),
             ("👍", self.stat.like),
             ("🪙", self.stat.coin),
             ("⭐", self.stat.favorite),
@@ -89,9 +98,15 @@ class VideoInfo(Struct):
         # 构建结果字符串
         result_parts = []
         for display_name, value in stats_mapping:
+            if isinstance(value, str):
+                result_parts.append(f"{display_name} {value}")
+                continue
             # 数值超过10000时转换为万为单位
-            formatted_value = f"{value / 10000:.1f}万" if value > 10000 else str(value)
-            result_parts.append(f"{display_name} {formatted_value}")
+            if value > 10000:
+                formatted_value = f"{value / 10000:.1f}万"
+                result_parts.append(f"{display_name} {formatted_value} ({value})")
+            else:
+                result_parts.append(f"{display_name} {value}")
 
         return " ".join(result_parts)
 

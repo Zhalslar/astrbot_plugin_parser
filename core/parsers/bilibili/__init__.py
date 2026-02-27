@@ -205,7 +205,10 @@ class BilibiliParser(BaseParser):
             text=text,
             author=author,
             contents=[video_content],
-            extra={"info": ai_summary},
+            extra={
+                "info": ai_summary,
+                "stats": video_info.formatted_stats_info,
+            },
         )
 
     async def parse_dynamic(self, dynamic_id: int):
@@ -237,6 +240,7 @@ class BilibiliParser(BaseParser):
             timestamp=dynamic_info.timestamp,
             author=author,
             contents=contents,
+            extra={"route": "bilibili_dynamic"},
         )
 
     async def parse_opus(self, opus_id: int):

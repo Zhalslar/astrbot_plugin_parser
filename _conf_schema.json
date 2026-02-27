@@ -71,7 +71,7 @@
             "max": 10,
             "step": 1
         },
-        "default": 2
+        "default": 0
     },
     "show_download_fail_tip": {
         "description": "提示下载失败项",

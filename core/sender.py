@@ -1,5 +1,6 @@
 from itertools import chain
 from pathlib import Path
+from astrbot.api import logger
 
 from astrbot.core.message.components import (
     BaseMessageComponent,
@@ -126,6 +127,14 @@ class MessageSender:
         """
         segs: list[BaseMessageComponent] = []
 
+        # 标题默认发送
+        if result.title:
+            segs.append(Plain(result.title))
+
+        # 单个 text / 单个 textnode 场景：无媒体内容时发送正文
+        if result.text and not plan["light"] and not plan["heavy"]:
+            segs.append(Plain(result.text))
+
         # 合并转发时，卡片以内联形式作为一个消息段参与合并
         if plan["render_card"] and plan["force_merge"]:
             if image_path := await self.renderer.render_card(result):
@@ -162,7 +171,7 @@ class MessageSender:
                 continue
             except DownloadException:
                 if self.cfg.show_download_fail_tip:
-                    segs.append(Plain("此项媒体下载失败"))
+                    segs.append(Plain("无法下载该媒体"))
                 continue
 
             match cont:
@@ -176,6 +185,10 @@ class MessageSender:
                     )
                 case FileContent():
                     segs.append(File(name=path.name, file=str(path)))
+
+        # 统计信息仅在消息层发送
+        if stats_info := result.extra.get("stats"):
+            segs.append(Plain(str(stats_info)))
 
         return segs
 
@@ -196,13 +209,23 @@ class MessageSender:
         if not force_merge or not segs:
             return segs
 
-        nodes = Nodes([])
-        self_id = event.get_self_id()
+        # 当消息较多时，按 66 条一组合并，避免单个合并消息过大
+        chunk_size = 66 if len(segs) > 90 else len(segs)
 
-        for seg in segs:
-            nodes.nodes.append(Node(uin=self_id, name="解析器", content=[seg]))
+        logger.info(f"合并前的消息数量: {len(segs)}, 分块大小: {chunk_size}")
+        
+        merged_batches: list[BaseMessageComponent] = []
 
-        return [nodes]
+        for i in range(0, len(segs), chunk_size):
+            chunk = segs[i : i + chunk_size]
+            nodes = Nodes([])
+            for seg in chunk:
+                nodes.nodes.append(Node(uin="1403206256", name="樱花朝日", content=[seg]))
+            merged_batches.append(nodes)
+
+        logger.info(f"合并后的消息包的数量: {len(merged_batches)}")
+
+        return merged_batches
 
 
     async def send_parse_result(
@@ -225,7 +248,14 @@ class MessageSender:
         await self._send_preview_card(event, result, plan)
 
         segs = await self._build_segments(result, plan)
+
         segs = self._merge_segments_if_needed(event, segs, plan["force_merge"])
 
         if segs:
-            await event.send(event.chain_result(segs))
+            if plan["force_merge"] and len(segs) > 1:
+                logger.info(f"正在发送合并后的消息包，共 {len(segs)} 个消息包")
+                for seg in segs:
+                    await event.send(event.chain_result([seg]))
+            else:
+                logger.info(f"正在发送消息，共 {len(segs)} 条消息")
+                await event.send(event.chain_result(segs))
