@@ -1,6 +1,9 @@
+import json
+from importlib.util import find_spec
 from itertools import chain
 from pathlib import Path
 
+from astrbot.api import logger
 from astrbot.core.message.components import (
     BaseMessageComponent,
     File,
@@ -30,6 +33,11 @@ from .exception import (
     ZeroSizeException,
 )
 from .render import Renderer
+
+if find_spec("aiocqhttp.exceptions"):
+    from aiocqhttp.exceptions import ActionFailed as AiocqhttpActionFailed
+else:
+    AiocqhttpActionFailed = None
 
 
 class MessageSender:
@@ -204,6 +212,31 @@ class MessageSender:
 
         return [nodes]
 
+    @staticmethod
+    def _collect_seg_meta(segs: list[BaseMessageComponent]) -> list[dict[str, str]]:
+        """提取消息段元信息，用于失败日志定位。"""
+        meta: list[dict[str, str]] = []
+
+        for seg in segs:
+            item = {"type": seg.__class__.__name__}
+            for attr in ("file", "path", "url"):
+                value = getattr(seg, attr, None)
+                if value:
+                    item["media"] = str(value)
+                    break
+            meta.append(item)
+
+        return meta
+
+    @staticmethod
+    def _is_send_action_failed(exc: Exception) -> bool:
+        """兼容不同适配器发送异常类型。"""
+        if AiocqhttpActionFailed and isinstance(exc, AiocqhttpActionFailed):
+            return True
+
+        type_name = exc.__class__.__name__
+        return any(key in type_name for key in ("ActionFailed", "Send", "Adapter"))
+
 
     async def send_parse_result(
         self,
@@ -228,4 +261,47 @@ class MessageSender:
         segs = self._merge_segments_if_needed(event, segs, plan["force_merge"])
 
         if segs:
-            await event.send(event.chain_result(segs))
+            try:
+                await event.send(event.chain_result(segs))
+            except Exception as e:
+                if not self._is_send_action_failed(e):
+                    # 发送链路外异常也兜底，避免影响插件主处理链
+                    logger.exception(
+                        f"发送解析结果出现非预期异常，将执行降级发送: {e}"
+                    )
+
+                session_id = getattr(event, "unified_msg_origin", "unknown")
+                seg_meta = self._collect_seg_meta(segs)
+                logger.error(
+                    "发送解析结果失败 | payload=%s",
+                    json.dumps(
+                        {
+                            "session_id": str(session_id),
+                            "segments": seg_meta,
+                            "error": str(e),
+                        },
+                        ensure_ascii=False,
+                    ),
+                )
+
+                try:
+                    await event.send(
+                        event.chain_result(
+                            [
+                                Plain(
+                                    "媒体发送失败（平台不支持本地路径或文件协议），请检查适配器配置"
+                                )
+                            ]
+                        )
+                    )
+                except Exception as fallback_e:
+                    logger.error(
+                        "降级消息发送失败 | payload=%s",
+                        json.dumps(
+                            {
+                                "session_id": str(session_id),
+                                "error": str(fallback_e),
+                            },
+                            ensure_ascii=False,
+                        ),
+                    )
