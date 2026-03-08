@@ -257,6 +257,21 @@ class BaseParser:
 
         return VideoContent(url_or_task, cover_task, duration)
 
+    def create_video_content_by_task(
+        self,
+        path_task: Task[Path],
+        cover_url: str | None = None,
+        duration: float = 0.0,
+        headers: dict[str, str] | None = None,
+    ):
+        """创建视频内容，允许调用方自行决定下载任务实现"""
+        cover_task = None
+        if cover_url:
+            cover_task = self.downloader.download_img(
+                cover_url, headers=headers or self.headers, proxy=self.proxy
+            )
+        return VideoContent(path_task, cover_task, duration)
+
     def create_image_contents(
         self,
         image_urls: list[str],

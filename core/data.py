@@ -81,6 +81,19 @@ class ImageContent(MediaContent):
 
 
 @dataclass(repr=False, slots=True)
+class TextContent(MediaContent):
+    """文本内容，用于把纯文本作为标准消息项参与发送/合并"""
+
+    text: str = ""
+
+    async def get_path(self) -> Path:
+        raise RuntimeError("TextContent does not have a filesystem path")
+
+    def __repr__(self) -> str:
+        return f"TextContent(text={self.text})"
+
+
+@dataclass(repr=False, slots=True)
 class DynamicContent(MediaContent):
     """动态内容 视频格式 后续转 gif"""
 
@@ -169,6 +182,7 @@ class ParseResult:
     """渲染图片"""
     _resource_id: str | None = field(init=False, repr=False)
     """资源 ID"""
+
     @property
     def header(self) -> str | None:
         """头信息 仅用于 default render"""
@@ -216,13 +230,16 @@ class ParseResult:
         return [cont for cont in self.contents if isinstance(cont, GraphicsContent)]
 
     @property
+    def text_contents(self) -> list[TextContent]:
+        return [cont for cont in self.contents if isinstance(cont, TextContent)]
+
+    @property
     async def cover_path(self) -> Path | None:
         """获取封面路径"""
         for cont in self.contents:
             if isinstance(cont, VideoContent):
                 return await cont.get_cover_path()
         return None
-
 
     def formatted_datetime(self, fmt: str = "%Y-%m-%d %H:%M:%S") -> str | None:
         """格式化时间戳"""
@@ -285,6 +302,8 @@ class ParseResult:
             elif isinstance(cont, GraphicsContent):
                 add(cont.text)
                 add(cont.alt)
+            elif isinstance(cont, TextContent):
+                add(cont.text)
 
         # ---------- 转发 ----------
         if self.repost:
@@ -292,7 +311,6 @@ class ParseResult:
 
         self._resource_id = h.hexdigest()
         return self._resource_id
-
 
 
 class ParseResultKwargs(TypedDict, total=False):

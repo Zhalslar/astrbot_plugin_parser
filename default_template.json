@@ -30,5 +30,13 @@
     "enable": true,
     "use_proxy": false,
     "cookies": ""
+  },
+  {
+    "__template_key": "xiaoheihe",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": "",
+    "show_body_text": true,
+    "video_send_mode": "first"
   }
 ]

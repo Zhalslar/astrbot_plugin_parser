@@ -277,6 +277,40 @@
                     }
                 }
             },
+            "xiaoheihe": {
+                "name": "小黑盒解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
+                    },
+                    "show_body_text": {
+                        "description": "显示正文内容",
+                        "hint": "开启后，小黑盒帖子的正文将作为独立文本消息参与发送或合并转发。",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "video_send_mode": {
+                        "description": "视频发送模式",
+                        "hint": "仅影响小黑盒视频：不发送视频、只发送第一个视频、发送全部视频。",
+                        "type": "string",
+                        "default": "first",
+                        "options": ["none", "first", "all"]
+                    }
+                }
+            },
             "tiktok": {
                 "name": "Tiktok 解析器",
                 "items": {

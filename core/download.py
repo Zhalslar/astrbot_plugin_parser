@@ -363,6 +363,52 @@ class Downloader:
         return video_path
 
     @auto_task
+    async def ytdlp_download_video_relaxed(
+        self,
+        url: str,
+        *,
+        cookiefile: Path | None = None,
+        headers: dict[str, str] | None = None,
+        proxy: str | None = None,
+        format: str | None = None,
+        node: bool = False,
+    ) -> Path:
+        file_stem = generate_file_name(url)
+        video_path = self.cfg.cache_dir / f"{file_stem}.mp4"
+        if video_path.exists():
+            return video_path
+
+        opts = {
+            "outtmpl": str(self.cfg.cache_dir / file_stem) + ".%(ext)s",
+            "merge_output_format": "mp4",
+            "format": format or None,
+            "postprocessors": [
+                {"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}
+            ],
+            "http_headers": headers or self.default_headers,
+            "quiet": True,
+            "no_warnings": True,
+        }
+        if not opts["format"]:
+            opts.pop("format")
+        if proxy:
+            opts["proxy"] = proxy
+        if cookiefile and cookiefile.is_file():
+            opts["cookiefile"] = str(cookiefile)
+        if node:
+            opts["js_runtimes"] = {"node": {}}
+
+        with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore
+            await to_thread(ydl.download, [url])
+        if video_path.exists():
+            return video_path
+
+        candidates = sorted(self.cfg.cache_dir.glob(f"{file_stem}*.mp4"))
+        if candidates:
+            return candidates[0]
+        raise DownloadException("yt-dlp 视频下载失败")
+
+    @auto_task
     async def ytdlp_download_audio(
         self,
         url: str,

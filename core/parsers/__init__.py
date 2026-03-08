@@ -1,4 +1,3 @@
-
 from .acfun import AcfunParser
 from .base import BaseParser
 from .bilibili import BilibiliParser
@@ -10,6 +9,7 @@ from .nga import NGAParser
 from .tiktok import TikTokParser
 from .twitter import TwitterParser
 from .weibo import WeiBoParser
+from .xiaoheihe import XiaoheiheParser
 from .xhs import XHSParser
 from .youtube import YouTubeParser
 
@@ -25,6 +25,7 @@ __all__ = [
     "TikTokParser",
     "TwitterParser",
     "WeiBoParser",
+    "XiaoheiheParser",
     "XHSParser",
     "YouTubeParser",
 ]

@@ -153,6 +153,8 @@ class ParserItem(ConfigNode):
     enable: bool
     use_proxy: bool
     cookies: str | None
+    show_body_text: bool | None
+    video_send_mode: str | None
     video_codecs: str | None
     video_quality: str | None
 
@@ -172,6 +174,7 @@ class ParserConfig(ConfigNodeContainer):
     tiktok: ParserItem
     twitter: ParserItem
     weibo: ParserItem
+    xiaoheihe: ParserItem
     xhs: ParserItem
     youtube: ParserItem
 
@@ -269,4 +272,3 @@ class PluginConfig(ConfigNode):
         if umo in self.blacklist:
             self.blacklist.remove(umo)
             self.save_config()
-
