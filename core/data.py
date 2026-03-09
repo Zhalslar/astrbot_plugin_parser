@@ -87,7 +87,7 @@ class TextContent(MediaContent):
     text: str
 
     def __init__(self, text: str):
-        super().__init__(Path("."))
+        MediaContent.__init__(self, Path("."))
         self.text = text
 
     async def get_path(self) -> Path:

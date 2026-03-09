@@ -242,7 +242,7 @@ class MessageSender:
         text = "\n".join(line for line in lines if line).strip()
         return [Plain(text)] if text else []
 
-    def _resolve_groups(result: ParseResult) -> list[SendGroup]:
+    def _resolve_groups(self, result: ParseResult) -> list[SendGroup]:
         if result.send_groups:
             return result.send_groups
         return [SendGroup(contents=list(MessageSender._iter_contents(result)))]
