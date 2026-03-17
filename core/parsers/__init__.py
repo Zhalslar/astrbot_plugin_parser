@@ -12,6 +12,7 @@ from .weibo import WeiBoParser
 from .xiaoheihe import XiaoheiheParser
 from .xhs import XHSParser
 from .youtube import YouTubeParser
+from .zhihu import ZhihuParser
 
 __all__ = [
     "BaseParser",
@@ -28,4 +29,5 @@ __all__ = [
     "XiaoheiheParser",
     "XHSParser",
     "YouTubeParser",
+    "ZhihuParser",
 ]

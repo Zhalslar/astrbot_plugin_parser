@@ -311,6 +311,27 @@
                     }
                 }
             },
+            "zhihu": {
+                "name": "知乎解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "必填! 否则无法解析知乎内容",
+                        "type": "text",
+                        "default": ""
+                    }
+                }
+            },
             "tiktok": {
                 "name": "Tiktok 解析器",
                 "items": {
