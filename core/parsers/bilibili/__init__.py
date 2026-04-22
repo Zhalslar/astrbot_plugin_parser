@@ -413,9 +413,15 @@ class BilibiliParser(BaseParser):
         # 获取下载数据
         download_url_data = await video.get_download_url(page_index=page_index)
         detecter = VideoDownloadURLDataDetecter(download_url_data)
+        codec_candidates = [self.video_codecs, VideoCodecs.AV1, VideoCodecs.HEV, VideoCodecs.AVC]
+        codec_priority = []
+        for c in codec_candidates:
+            if c not in codec_priority:
+                codec_priority.append(c)
+
         streams = detecter.detect_best_streams(
             video_max_quality=self.video_quality,
-            codecs=[self.video_codecs],
+            codecs=codec_priority,
             no_dolby_video=True,
             no_hdr=True,
         )
