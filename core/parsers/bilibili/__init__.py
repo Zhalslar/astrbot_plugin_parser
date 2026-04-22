@@ -153,14 +153,17 @@ class BilibiliParser(BaseParser):
         # 处理分 p
         page_info = video_info.extract_info_with_page(page_num)
 
-        # 获取 AI 总结
-        if self.login._credential:
-            cid = await video.get_cid(page_info.index)
-            ai_conclusion = await video.get_ai_conclusion(cid)
-            ai_conclusion = convert(ai_conclusion, AIConclusion)
-            ai_summary = ai_conclusion.summary
-        else:
-            ai_summary: str = "哔哩哔哩 cookie 未配置或失效, 无法使用 AI 总结"
+        try:
+            # 获取 AI 总结
+            if self.login._credential:
+                cid = await video.get_cid(page_info.index)
+                ai_conclusion = await video.get_ai_conclusion(cid)
+                ai_conclusion = convert(ai_conclusion, AIConclusion)
+                ai_summary = ai_conclusion.summary
+            else:
+                ai_summary: str = "哔哩哔哩 cookie 未配置或失效, 无法使用 AI 总结"
+        except Exception as e:
+            logger.warning(f"获取 AI 总结失败... {e}")
 
         url = f"https://bilibili.com/{video_info.bvid}"
         url += f"?p={page_info.index + 1}" if page_info.index > 0 else ""
