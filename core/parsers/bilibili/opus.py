@@ -145,9 +145,10 @@ class OpusItem(Struct):
         """从节点列表中提取文本内容"""
         text_content = ""
         for node in nodes:
-            if node.get("type") in [
-                "TEXT_NODE_TYPE_WORD",
-                "TEXT_NODE_TYPE_RICH",
-            ] and node.get("word"):
+            node_type = node.get("type")
+            if node_type == "TEXT_NODE_TYPE_WORD" and node.get("word"):
                 text_content += node["word"].get("words", "")
+            elif node_type == "TEXT_NODE_TYPE_RICH" and node.get("rich"):
+                rich = node["rich"]
+                text_content += rich.get("text") or rich.get("orig_text", "")
         return text_content
