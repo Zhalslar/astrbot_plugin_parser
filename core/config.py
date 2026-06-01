@@ -209,6 +209,8 @@ class PluginConfig(ConfigNode):
     common_timeout: int
 
     proxy: str | None
+    local_media_path_prefix: str | None
+    send_media_path_prefix: str | None
 
     clean_cron: str
 
@@ -227,6 +229,8 @@ class PluginConfig(ConfigNode):
 
         # ---------- 派生字段 ----------
         self.proxy = self.proxy or None
+        self.local_media_path_prefix = self.local_media_path_prefix or None
+        self.send_media_path_prefix = self.send_media_path_prefix or None
         self.max_duration = self.source_max_minute * 60
         self.max_size = self.source_max_size * 1024 * 1024
 

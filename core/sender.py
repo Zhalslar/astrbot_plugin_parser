@@ -57,7 +57,20 @@ class MessageSender:
     def _to_file_uri(self, path: Path) -> str:
         if not path.is_absolute():
             path = path.resolve()
+        path = self._map_send_path(path)
         return path.as_uri()
+
+    def _map_send_path(self, path: Path) -> Path:
+        local_prefix = self.cfg.local_media_path_prefix
+        send_prefix = self.cfg.send_media_path_prefix
+        if not local_prefix or not send_prefix:
+            return path
+
+        try:
+            relative_path = path.relative_to(Path(local_prefix))
+        except ValueError:
+            return path
+        return Path(send_prefix) / relative_path
 
     @staticmethod
     def _iter_contents(result: ParseResult):
