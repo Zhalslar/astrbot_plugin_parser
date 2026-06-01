@@ -120,13 +120,13 @@
     },
     "local_media_path_prefix": {
         "description": "本机媒体路径前缀",
-        "hint": "可选。AstrBot 与 OneBot/NapCat 不在同一文件系统时使用，例如 AstrBot 本机路径 /docker-file/AstrBot/data。留空则不转换。",
+        "hint": "可选。AstrBot 与 OneBot 实现不共享相同绝对路径时使用。填写 AstrBot 侧保存媒体文件的路径前缀。留空则不转换。",
         "type": "string",
         "default": ""
     },
     "send_media_path_prefix": {
         "description": "发送端媒体路径前缀",
-        "hint": "可选。对应 OneBot/NapCat 容器内可访问的路径，例如 /AstrBot/data。只有同时配置本机媒体路径前缀时生效。",
+        "hint": "可选。填写 OneBot 实现侧访问同一媒体文件时使用的路径前缀。只有同时配置本机媒体路径前缀时生效。留空则不转换。",
         "type": "string",
         "default": ""
     },
