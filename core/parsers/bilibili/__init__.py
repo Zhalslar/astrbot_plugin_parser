@@ -44,9 +44,10 @@ class BilibiliParser(BaseParser):
         self.video_quality = getattr(
             VideoQuality, str(self.mycfg.video_quality).upper(), VideoQuality._720P
         )
+        codec_names = self.mycfg.video_codec_list or [self.mycfg.video_codecs or "AVC"]
         self.video_codecs = [
             getattr(VideoCodecs, str(c).upper(), VideoCodecs.AVC)
-            for c in (self.mycfg.video_codec_list or ["AVC"])
+            for c in codec_names
         ]
         self.login = BilibiliLogin(config)
 
@@ -433,6 +434,5 @@ class BilibiliParser(BaseParser):
             return video_stream.url, None
         logger.debug(f"音频流质量: {audio_stream.audio_quality.name}")
         return video_stream.url, audio_stream.url
-
 
 
