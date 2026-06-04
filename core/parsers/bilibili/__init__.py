@@ -387,6 +387,84 @@ class BilibiliParser(BaseParser):
         else:
             raise ParseException("avid 和 bvid 至少指定一项")
 
+    def _video_quality_rank(self, stream: object) -> int:
+        """获取视频流质量排序值
+
+        Args:
+            stream (object): 视频流对象
+        """
+        quality = getattr(stream, "video_quality", None)
+        value = getattr(quality, "value", None)
+        return value if isinstance(value, int) else -1
+
+    def _video_codec_rank(self, stream: object) -> int:
+        """获取视频流编码偏好排序值
+
+        Args:
+            stream (object): 视频流对象
+        """
+        codec = getattr(stream, "video_codecs", None)
+        if codec is None:
+            return len(self.video_codecs)
+        try:
+            return self.video_codecs.index(codec)
+        except ValueError:
+            return len(self.video_codecs)
+
+    def _pick_fallback_streams(
+        self, streams: list[object]
+    ) -> tuple[object, object | None]:
+        """从候选流中选择可用的视频流和音频流
+
+        Args:
+            streams (list[object]): 候选流列表
+        """
+        video_streams = [
+            stream
+            for stream in streams
+            if type(stream).__name__ == "VideoStreamDownloadURL"
+            and getattr(stream, "url", None)
+        ]
+        if video_streams:
+            video_streams.sort(
+                key=lambda stream: (
+                    self._video_quality_rank(stream),
+                    -self._video_codec_rank(stream),
+                ),
+                reverse=True,
+            )
+            audio_streams = [
+                stream
+                for stream in streams
+                if type(stream).__name__ == "AudioStreamDownloadURL"
+                and getattr(stream, "url", None)
+            ]
+            audio_stream = audio_streams[0] if audio_streams else None
+            return video_streams[0], audio_stream
+
+        single_streams = [
+            stream
+            for stream in streams
+            if type(stream).__name__ in ("FLVStreamDownloadURL", "MP4StreamDownloadURL")
+            and getattr(stream, "url", None)
+        ]
+        if single_streams:
+            return single_streams[0], None
+        raise DownloadException("未找到可下载的视频流")
+
+    def _has_empty_video_codec(self, streams: list[object]) -> bool:
+        """检查候选视频流中是否存在空编码信息
+
+        Args:
+            streams (list[object]): 候选流列表
+        """
+        for stream in streams:
+            if type(stream).__name__ != "VideoStreamDownloadURL":
+                continue
+            if getattr(stream, "video_codecs", None) is None:
+                return True
+        return False
+
     async def extract_download_urls(
         self,
         video: Video | None = None,
@@ -415,20 +493,34 @@ class BilibiliParser(BaseParser):
         # 获取下载数据
         download_url_data = await video.get_download_url(page_index=page_index)
         detecter = VideoDownloadURLDataDetecter(download_url_data)
-        streams = detecter.detect_best_streams(
+        raw_streams = detecter.detect(
             video_max_quality=self.video_quality,
             codecs=self.video_codecs,
             no_dolby_video=True,
             no_hdr=True,
         )
-        video_stream = streams[0]
-        if not isinstance(video_stream, VideoStreamDownloadURL):
-            raise DownloadException("未找到可下载的视频流")
-        logger.debug(
-            f"视频流质量: {video_stream.video_quality.name}, 编码: {video_stream.video_codecs}"
-        )
 
-        audio_stream = streams[1]
+        if self._has_empty_video_codec(raw_streams):
+            logger.warning(
+                "B站返回的候选视频流中存在空 video_codecs，跳过 detect_best_streams，改用插件侧容错选择"
+            )
+            video_stream, audio_stream = self._pick_fallback_streams(raw_streams)
+        else:
+            streams = detecter.detect_best_streams(
+                video_max_quality=self.video_quality,
+                codecs=self.video_codecs,
+                no_dolby_video=True,
+                no_hdr=True,
+            )
+            video_stream = streams[0]
+            audio_stream = streams[1] if len(streams) > 1 else None
+
+        if not getattr(video_stream, "url", None):
+            raise DownloadException("未找到可下载的视频流")
+        video_quality = getattr(getattr(video_stream, "video_quality", None), "name", None)
+        video_codecs = getattr(video_stream, "video_codecs", None)
+        logger.debug(f"视频流质量: {video_quality}, 编码: {video_codecs}")
+
         if not isinstance(audio_stream, AudioStreamDownloadURL):
             return video_stream.url, None
         logger.debug(f"音频流质量: {audio_stream.audio_quality.name}")
