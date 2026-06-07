@@ -42,18 +42,18 @@ class PageInfo:
     cover: str | None = None
 
 
-class VideoInfo(Struct):
+class VideoInfo(Struct, kw_only=True):
     bvid: str
     """bvid"""
     title: str
     """标题"""
-    desc: str
+    desc: str | None = None
     """简介"""
     duration: int
     """时长"""
-    owner: Upper
+    owner: Upper | None = None
     """作者信息"""
-    stat: Stats
+    stat: Stats | None = None
     """统计信息"""
     pubdate: int
     """公开时间戳"""
@@ -72,10 +72,8 @@ class VideoInfo(Struct):
 
     @property
     def formatted_stats_info(self) -> str:
-        """
-        格式化视频信息
-        """
-        # 定义需要展示的数据及其显示名称
+        if not self.stat:
+            return ""
         stats_mapping = [
             ("👍", self.stat.like),
             ("🪙", self.stat.coin),
