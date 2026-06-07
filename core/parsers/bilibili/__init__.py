@@ -144,11 +144,11 @@ class BilibiliParser(BaseParser):
         from .video import AIConclusion, VideoInfo
 
         video = await self._get_video(bvid=bvid, avid=avid)
-        # 转换为 msgspec struct
         video_info = convert(await video.get_info(), VideoInfo)
-        # 获取简介
+        if not video_info.owner:
+            raise ParseException("未获取到 UP 主信息，请求可能被风控")
+
         text = f"简介: {video_info.desc}" if video_info.desc else None
-        # up
         author = self.create_author(video_info.owner.name, video_info.owner.face)
         # 处理分 p
         page_info = video_info.extract_info_with_page(page_num)
@@ -412,15 +412,23 @@ class BilibiliParser(BaseParser):
         if video is None:
             video = await self._get_video(bvid=bvid, avid=avid)
 
-        # 获取下载数据
         download_url_data = await video.get_download_url(page_index=page_index)
         detecter = VideoDownloadURLDataDetecter(download_url_data)
-        streams = detecter.detect_best_streams(
-            video_max_quality=self.video_quality,
-            codecs=self.video_codecs,
-            no_dolby_video=True,
-            no_hdr=True,
-        )
+        try:
+            streams = detecter.detect_best_streams(
+                video_max_quality=self.video_quality,
+                codecs=self.video_codecs,
+                no_dolby_video=True,
+                no_hdr=True,
+            )
+        except (AttributeError, IndexError) as e:
+            logger.warning(f"detect_best_streams 异常 ({e})，降级重试")
+            streams = detecter.detect_best_streams(
+                video_max_quality=self.video_quality,
+                codecs=[],
+                no_dolby_video=True,
+                no_hdr=True,
+            )
         video_stream = streams[0]
         if not isinstance(video_stream, VideoStreamDownloadURL):
             raise DownloadException("未找到可下载的视频流")
