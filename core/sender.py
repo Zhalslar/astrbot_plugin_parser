@@ -57,9 +57,11 @@ class MessageSender:
     def _to_file_uri(self, path: Path) -> str:
         if not path.is_absolute():
             path = path.resolve()
-        posix_path = path.as_posix()
-        if posix_path.startswith("/"):
-            return f"file:////{posix_path.lstrip('/')}"
+        # Windows: Path.as_uri() → file:///C:/path, [8:] → C:/path ✓
+        # POSIX:  Path.as_uri() → file:///path,     [8:] → path    ✗ (丢失前导 /)
+        # 补偿：POSIX 绝对路径追加一个 /, 使 [8:] → /path ✓
+        if not path.drive:
+            return f"file:////{path.as_posix().lstrip('/')}"
         return path.as_uri()
 
     @staticmethod
