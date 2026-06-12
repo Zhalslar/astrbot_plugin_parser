@@ -4,7 +4,13 @@ from typing import ClassVar
 
 from bilibili_api import request_settings, select_client
 from bilibili_api.opus import Opus
-from bilibili_api.video import Video, VideoCodecs, VideoQuality
+from bilibili_api.video import (
+    Video,
+    VideoCodecs,
+    VideoQuality,
+    VideoStreamDownloadURL,
+    AudioStreamDownloadURL,
+)
 from msgspec import convert
 
 from astrbot.api import logger
@@ -44,10 +50,10 @@ class BilibiliParser(BaseParser):
         self.video_quality = getattr(
             VideoQuality, str(self.mycfg.video_quality).upper(), VideoQuality._720P
         )
-        self.video_codecs = [
-            getattr(VideoCodecs, str(c).upper(), VideoCodecs.AVC)
-            for c in (self.mycfg.video_codec_list or ["AVC"])
-        ]
+        self.video_codecs = getattr(
+            VideoCodecs, str(self.mycfg.video_codecs).upper(), VideoCodecs.AVC
+        )
+
         self.login = BilibiliLogin(config)
 
     @handle("b23.tv", r"b23\.tv/[A-Za-z\d\._?%&+\-=/#]+")
@@ -153,16 +159,14 @@ class BilibiliParser(BaseParser):
         # 处理分 p
         page_info = video_info.extract_info_with_page(page_num)
 
-        # 获取 AI 总结（默认提示）
-        ai_summary = ""
+        # 获取 AI 总结
         if self.login._credential:
-            try:
-                cid = await video.get_cid(page_info.index)
-                ai_conclusion = await video.get_ai_conclusion(cid)
-                ai_conclusion = convert(ai_conclusion, AIConclusion)
-                ai_summary = ai_conclusion.summary
-            except Exception:
-                ai_summary = "哔哩哔哩 cookie 未配置或失效, 无法使用 AI 总结"
+            cid = await video.get_cid(page_info.index)
+            ai_conclusion = await video.get_ai_conclusion(cid)
+            ai_conclusion = convert(ai_conclusion, AIConclusion)
+            ai_summary = ai_conclusion.summary
+        else:
+            ai_summary: str = "哔哩哔哩 cookie 未配置或失效, 无法使用 AI 总结"
 
         url = f"https://bilibili.com/{video_info.bvid}"
         url += f"?p={page_info.index + 1}" if page_info.index > 0 else ""
@@ -403,21 +407,31 @@ class BilibiliParser(BaseParser):
             page_index (int): 页索引 = 页码 - 1
         """
 
-        from bilibili_api.video import (
-            AudioStreamDownloadURL,
-            VideoDownloadURLDataDetecter,
-            VideoStreamDownloadURL,
-        )
+        from bilibili_api.video import VideoDownloadURLDataDetecter
 
         if video is None:
             video = await self._get_video(bvid=bvid, avid=avid)
 
         # 获取下载数据
         download_url_data = await video.get_download_url(page_index=page_index)
+
+        # hvc1→hev 标准化：B站新增了 hvc1.* 编码流，但 bilibili-api v17.4.1 未识别
+        # 不处理会导致 video_codecs=None → 排序时 .value 崩溃 → 万能解析器崩溃
+        def _normalize_codecs(data):
+            if isinstance(data, dict):
+                return {k: _normalize_codecs(v) for k, v in data.items()}
+            elif isinstance(data, list):
+                return [_normalize_codecs(item) for item in data]
+            elif isinstance(data, str):
+                return data.replace('hvc1', 'hev')
+            return data
+
+        download_url_data = _normalize_codecs(download_url_data)
+
         detecter = VideoDownloadURLDataDetecter(download_url_data)
         streams = detecter.detect_best_streams(
             video_max_quality=self.video_quality,
-            codecs=self.video_codecs,
+            codecs=[self.video_codecs],
             no_dolby_video=True,
             no_hdr=True,
         )
