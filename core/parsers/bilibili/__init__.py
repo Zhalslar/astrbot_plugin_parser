@@ -4,7 +4,13 @@ from typing import ClassVar
 
 from bilibili_api import request_settings, select_client
 from bilibili_api.opus import Opus
-from bilibili_api.video import Video, VideoCodecs, VideoQuality
+from bilibili_api.video import (
+    Video,
+    VideoCodecs,
+    VideoQuality,
+    VideoStreamDownloadURL,
+    AudioStreamDownloadURL,
+)
 from msgspec import convert
 
 from astrbot.api import logger
@@ -44,10 +50,10 @@ class BilibiliParser(BaseParser):
         self.video_quality = getattr(
             VideoQuality, str(self.mycfg.video_quality).upper(), VideoQuality._720P
         )
-        self.video_codecs = [
-            getattr(VideoCodecs, str(c).upper(), VideoCodecs.AVC)
-            for c in (self.mycfg.video_codec_list or ["AVC"])
-        ]
+        self.video_codecs = getattr(
+            VideoCodecs, str(self.mycfg.video_codecs).upper(), VideoCodecs.AVC
+        )
+
         self.login = BilibiliLogin(config)
 
     @handle("b23.tv", r"b23\.tv/[A-Za-z\d\._?%&+\-=/#]+")
@@ -153,16 +159,14 @@ class BilibiliParser(BaseParser):
         # 处理分 p
         page_info = video_info.extract_info_with_page(page_num)
 
-        # 获取 AI 总结（默认提示）
-        ai_summary = ""
+        # 获取 AI 总结
         if self.login._credential:
-            try:
-                cid = await video.get_cid(page_info.index)
-                ai_conclusion = await video.get_ai_conclusion(cid)
-                ai_conclusion = convert(ai_conclusion, AIConclusion)
-                ai_summary = ai_conclusion.summary
-            except Exception:
-                ai_summary = "哔哩哔哩 cookie 未配置或失效, 无法使用 AI 总结"
+            cid = await video.get_cid(page_info.index)
+            ai_conclusion = await video.get_ai_conclusion(cid)
+            ai_conclusion = convert(ai_conclusion, AIConclusion)
+            ai_summary = ai_conclusion.summary
+        else:
+            ai_summary: str = "哔哩哔哩 cookie 未配置或失效, 无法使用 AI 总结"
 
         url = f"https://bilibili.com/{video_info.bvid}"
         url += f"?p={page_info.index + 1}" if page_info.index > 0 else ""
@@ -403,11 +407,7 @@ class BilibiliParser(BaseParser):
             page_index (int): 页索引 = 页码 - 1
         """
 
-        from bilibili_api.video import (
-            AudioStreamDownloadURL,
-            VideoDownloadURLDataDetecter,
-            VideoStreamDownloadURL,
-        )
+        from bilibili_api.video import VideoDownloadURLDataDetecter
 
         if video is None:
             video = await self._get_video(bvid=bvid, avid=avid)
@@ -415,21 +415,48 @@ class BilibiliParser(BaseParser):
         # 获取下载数据
         download_url_data = await video.get_download_url(page_index=page_index)
         detecter = VideoDownloadURLDataDetecter(download_url_data)
-        streams = detecter.detect_best_streams(
-            video_max_quality=self.video_quality,
-            codecs=self.video_codecs,
-            no_dolby_video=True,
-            no_hdr=True,
-        )
-        video_stream = streams[0]
-        if not isinstance(video_stream, VideoStreamDownloadURL):
+
+        # 手动筛选流，避免 detect_best_streams 内部排序时 video_codecs 为 None 崩溃
+        all_streams = detecter.detect_all()
+        video_candidates = [
+            s for s in all_streams if isinstance(s, VideoStreamDownloadURL)
+        ]
+        audio_candidates = [
+            s for s in all_streams if isinstance(s, AudioStreamDownloadURL)
+        ]
+
+        if not video_candidates:
             raise DownloadException("未找到可下载的视频流")
+
+        # 按质量降序，安全处理 codecs 为 None 或类型不一致的情况
+        def _safe_quality_key(s):
+            try:
+                q = int(s.video_quality.value) if s.video_quality else 0
+            except (ValueError, TypeError, AttributeError):
+                q = 0
+            try:
+                c = int(s.video_codecs.value) if s.video_codecs else 0
+            except (ValueError, TypeError, AttributeError):
+                c = 0
+            return (q, c)
+
+        video_candidates.sort(key=_safe_quality_key, reverse=True)
+
+        def _safe_audio_key(s):
+            try:
+                return int(s.audio_quality.value) if s.audio_quality else 0
+            except (ValueError, TypeError, AttributeError):
+                return 0
+
+        audio_candidates.sort(key=_safe_audio_key, reverse=True)
+
+        video_stream = video_candidates[0]
         logger.debug(
             f"视频流质量: {video_stream.video_quality.name}, 编码: {video_stream.video_codecs}"
         )
 
-        audio_stream = streams[1]
-        if not isinstance(audio_stream, AudioStreamDownloadURL):
+        audio_stream = audio_candidates[0] if audio_candidates else None
+        if not audio_stream:
             return video_stream.url, None
         logger.debug(f"音频流质量: {audio_stream.audio_quality.name}")
         return video_stream.url, audio_stream.url
