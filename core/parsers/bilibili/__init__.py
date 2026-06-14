@@ -414,6 +414,11 @@ class BilibiliParser(BaseParser):
 
         # 获取下载数据
         download_url_data = await video.get_download_url(page_index=page_index)
+        # Normalize hvc1 streams so bilibili-api can recognize them as HEV.
+        for video_data in download_url_data.get("dash", {}).get("video", []):
+            codecs = video_data.get("codecs", "")
+            if isinstance(codecs, str) and codecs.startswith("hvc1"):
+                video_data["codecs"] = f"hev,{codecs}"
         detecter = VideoDownloadURLDataDetecter(download_url_data)
         streams = detecter.detect_best_streams(
             video_max_quality=self.video_quality,
