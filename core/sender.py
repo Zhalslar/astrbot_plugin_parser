@@ -60,6 +60,18 @@ class MessageSender:
         return path.as_uri()
 
     @staticmethod
+    def _image_from_path(path: Path) -> Image:
+        return Image.fromFileSystem(str(path))
+
+    @staticmethod
+    def _video_from_path(path: Path) -> Video:
+        return Video.fromFileSystem(str(path))
+
+    @staticmethod
+    def _record_from_path(path: Path) -> Record:
+        return Record.fromFileSystem(str(path))
+
+    @staticmethod
     def _iter_contents(result: ParseResult):
         return chain(result.contents, result.repost.contents if result.repost else ())
 
@@ -130,7 +142,7 @@ class MessageSender:
             return
 
         if image_path := await self.renderer.render_card(result):
-            await event.send(event.chain_result([Image(self._to_file_uri(image_path))]))
+            await event.send(event.chain_result([self._image_from_path(image_path)]))
 
     async def _build_segments(
         self,
@@ -149,7 +161,7 @@ class MessageSender:
         # 合并转发时，卡片以内联形式作为一个消息段参与合并
         if plan["render_card"] and plan["force_merge"]:
             if image_path := await self.renderer.render_card(result):
-                segs.append(Image(self._to_file_uri(image_path)))
+                segs.append(self._image_from_path(image_path))
 
         # 轻媒体处理
         for cont in plan["light"]:
@@ -169,10 +181,9 @@ class MessageSender:
 
             match cont:
                 case ImageContent():
-                    segs.append(Image(self._to_file_uri(path)))
+                    segs.append(self._image_from_path(path))
                 case GraphicsContent() as g:
-                    # OneBot/aiocqhttp 本地文件参数要求 file:// URI，而非裸本地路径。
-                    segs.append(Image(self._to_file_uri(path)))
+                    segs.append(self._image_from_path(path))
                     # GraphicsContent 允许携带补充文本
                     if g.text:
                         segs.append(Plain(g.text))
@@ -193,12 +204,12 @@ class MessageSender:
 
             match cont:
                 case VideoContent() | DynamicContent():
-                    segs.append(Video(self._to_file_uri(path)))
+                    segs.append(self._video_from_path(path))
                 case AudioContent():
                     segs.append(
                         File(name=path.name, file=self._to_file_uri(path))
                         if self.cfg.audio_to_file
-                        else Record(self._to_file_uri(path))
+                        else self._record_from_path(path)
                     )
                 case FileContent():
                     segs.append(File(name=path.name, file=self._to_file_uri(path)))

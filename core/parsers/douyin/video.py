@@ -1,5 +1,6 @@
 from random import choice
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from msgspec import Struct, field
 
@@ -17,7 +18,8 @@ class Author(Struct):
 
 
 class PlayAddr(Struct):
-    url_list: list[str]
+    uri: str | None = None
+    url_list: list[str] = field(default_factory=list)
 
 
 class Cover(Struct):
@@ -48,7 +50,24 @@ class VideoData(Struct):
 
     @property
     def video_url(self) -> str | None:
-        return choice(self.video.play_addr.url_list).replace("playwm", "play") if self.video else None
+        if not self.video or not self.video.play_addr.url_list:
+            return None
+        return choice(self.video.play_addr.url_list).replace("playwm", "play")
+
+    @property
+    def play_token(self) -> str | None:
+        if not self.video:
+            return None
+
+        play_addr = self.video.play_addr
+        if play_addr.uri:
+            return play_addr.uri
+
+        for url in play_addr.url_list:
+            query = parse_qs(urlparse(url).query)
+            if video_id := query.get("video_id"):
+                return video_id[0]
+        return None
 
     @property
     def cover_url(self) -> str | None:
