@@ -388,56 +388,57 @@ class BilibiliParser(BaseParser):
             raise ParseException("avid 和 bvid 至少指定一项")
 
     async def extract_download_urls(
-        self,
-        video: Video | None = None,
-        *,
-        bvid: str | None = None,
-        avid: int | None = None,
-        page_index: int = 0,
-    ) -> tuple[str, str | None]:
-        """解析视频下载链接
+            self,
+            video: Video | None = None,
+            *,
+            bvid: str | None = None,
+            avid: int | None = None,
+            page_index: int = 0,
+        ) -> tuple[str, str | None]:
+            """解析视频下载链接
 
-        Args:
-            bvid (str | None): bvid
-            avid (int | None): avid
-            page_index (int): 页索引 = 页码 - 1
-        """
+            Args:
+                bvid (str | None): bvid
+                avid (int | None): avid
+                page_index (int): 页索引 = 页码 - 1
+            """
 
-        from bilibili_api.video import (
-            AudioStreamDownloadURL,
-            VideoDownloadURLDataDetecter,
-            VideoStreamDownloadURL,
-        )
+            from bilibili_api.video import (
+                AudioStreamDownloadURL,
+                VideoDownloadURLDataDetecter,
+                VideoStreamDownloadURL,
+            )
 
-        if video is None:
-            video = await self._get_video(bvid=bvid, avid=avid)
+            if video is None:
+                video = await self._get_video(bvid=bvid, avid=avid)
 
-        # 获取下载数据
-        download_url_data = await video.get_download_url(page_index=page_index)
-        # Normalize hvc1 streams so bilibili-api can recognize them as HEV.
-        for video_data in download_url_data.get("dash", {}).get("video", []):
-            codecs = video_data.get("codecs", "")
-            if isinstance(codecs, str) and codecs.startswith("hvc1"):
-                video_data["codecs"] = f"hev,{codecs}"
-        detecter = VideoDownloadURLDataDetecter(download_url_data)
-        streams = detecter.detect_best_streams(
-            video_max_quality=self.video_quality,
-            codecs=self.video_codecs,
-            no_dolby_video=True,
-            no_hdr=True,
-        )
-        video_stream = streams[0]
-        if not isinstance(video_stream, VideoStreamDownloadURL):
-            raise DownloadException("未找到可下载的视频流")
-        logger.debug(
-            f"视频流质量: {video_stream.video_quality.name}, 编码: {video_stream.video_codecs}"
-        )
+            # 获取下载数据
+            download_url_data = await video.get_download_url(page_index=page_index)
+            # Normalize hvc1 streams so bilibili-api can recognize them as HEV.
+            for video_data in download_url_data.get("dash", {}).get("video", []):
+                codecs = video_data.get("codecs", "")
+                if isinstance(codecs, str) and codecs.startswith("hvc1"):
+                    video_data["codecs"] = f"hev,{codecs}"
+                # ========== 新增修复：确保 codecs 字段不为空 ==========
+                if not video_data.get("codecs"):
+                    video_data["codecs"] = "avc1"   # 默认编码，避免后续比较时报 NoneType 错误
 
-        audio_stream = streams[1]
-        if not isinstance(audio_stream, AudioStreamDownloadURL):
-            return video_stream.url, None
-        logger.debug(f"音频流质量: {audio_stream.audio_quality.name}")
-        return video_stream.url, audio_stream.url
+            detecter = VideoDownloadURLDataDetecter(download_url_data)
+            streams = detecter.detect_best_streams(
+                video_max_quality=self.video_quality,
+                codecs=self.video_codecs,
+                no_dolby_video=True,
+                no_hdr=True,
+            )
+            video_stream = streams[0]
+            if not isinstance(video_stream, VideoStreamDownloadURL):
+                raise DownloadException("未找到可下载的视频流")
+            logger.debug(
+                f"视频流质量: {video_stream.video_quality.name}, 编码: {video_stream.video_codecs}"
+            )
 
-
-
+            audio_stream = streams[1]
+            if not isinstance(audio_stream, AudioStreamDownloadURL):
+                return video_stream.url, None
+            logger.debug(f"音频流质量: {audio_stream.audio_quality.name}")
+            return video_stream.url, audio_stream.url
