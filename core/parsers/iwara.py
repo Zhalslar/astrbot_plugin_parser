@@ -174,7 +174,7 @@ class IwaraParser(BaseParser):
             if user_avatar
             else "https://www.iwara.tv/images/default-avatar.jpg" # iwara 默认头像
         )
-        img_path = await self.downloader.download_img(video_thumbnail)
+        img_path = await self.downloader.download_img(video_thumbnail, proxy=self.proxy)
         video_thumbnail_img = api.auto_blur_video_thumbnail(img_path, r18, self.mycfg.nsfw or "blur")
         
         # 获取视频下载链接
