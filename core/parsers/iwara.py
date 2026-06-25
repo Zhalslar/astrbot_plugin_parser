@@ -186,10 +186,7 @@ class IwaraParser(BaseParser):
         video_url = await api.urlInfo_Get_videoURL(urlInfo, quality)
 
         # 构建发送信息
-        send_info = f"""
-        视频描述: {video_body}
-        视频标签: {', '.join(f'#{tag}' for tag in video_tags)}
-        """
+        send_info = f"视频描述: {video_body}\n\nTAG: {', '.join(f'#{tag}' for tag in video_tags)}"
 
         video_contents = VideoContent(
             path_task = self.downloader.download_video(video_url),
