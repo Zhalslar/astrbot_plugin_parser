@@ -131,9 +131,9 @@ class api:
             output_path = image_path
         else:
             output_path = Path(output_path)
-        img = Image.open(image_path)
-        blurred = img.filter(ImageFilter.GaussianBlur(radius=radius))
-        blurred.save(output_path)
+        with Image.open(image_path) as img:
+            blurred = img.filter(ImageFilter.GaussianBlur(radius=radius))
+            blurred.save(output_path)
         return output_path
     
 
@@ -168,7 +168,7 @@ class IwaraParser(BaseParser):
         user_avatar = video_info["user"]["avatar"]
         r18 = video_info["rating"]
         video_user_avatar = (
-            f"https://i.iwara.tv/image/avatar/{user_avatar['id']}/{user_avatar['name']}" # 获取用户投降
+            f"https://i.iwara.tv/image/avatar/{user_avatar['id']}/{user_avatar['name']}" # 获取用户头像
             if user_avatar
             else "https://www.iwara.tv/images/default-avatar.jpg" # iwara 默认头像
         )
