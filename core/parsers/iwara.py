@@ -174,7 +174,11 @@ class IwaraParser(BaseParser):
         )
 
         if r18 == "ecchi" and self.mycfg.nsfw == "ignore":
-            raise ParseException(f"视频 {video_title} 是 R18 视频，已忽略")
+            return self.result(
+                title=video_title,
+                extra={"info": f"⚠ 该视频为 R18 内容，已按配置忽略"},
+                url=f"https://www.iwara.tv/video/{video_id}",
+            )
 
         img_path = await self.downloader.download_img(video_thumbnail, proxy=self.proxy)
         video_thumbnail_img = api.auto_blur_video_thumbnail(img_path, r18, self.mycfg.nsfw or "blur")
