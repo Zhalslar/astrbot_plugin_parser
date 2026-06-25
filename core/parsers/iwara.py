@@ -8,7 +8,7 @@ from PIL import Image, ImageFilter
 from pathlib import Path
 
 from ..config import PluginConfig
-from ..data import ParseResult, Platform, VideoContent, ImageContent
+from ..data import ParseResult, Platform, VideoContent, ImageContent, TextContent
 from ..download import Downloader
 from .base import BaseParser, handle
 from ..exception import ParseException
@@ -268,13 +268,18 @@ class IwaraParser(BaseParser):
             )
 
         # 构建发送信息
-        send_info = f"图片描述: {image_body}\n\nTAG: {', '.join(f'#{tag}' for tag in image_tags)}"
+        text = TextContent(
+            text=f"标题: {image_title}\n作者：{user_name} ({user_username})\n图片描述: {image_body}\nTAG: {', '.join(f'#{tag}' for tag in image_tags) if image_tags else '无'}"
+        )
 
         image_contents = []
         for img_url in image_urls:
-            image_contents.append(ImageContent(
-                path_task = self.downloader.download_img(img_url, proxy=self.proxy),
-            ))
+            img_path = await self.downloader.download_img(img_url, proxy=self.proxy)
+            img = api.auto_blur_video_thumbnail(img_path, image_rating, self.mycfg.nsfw or "blur")
+            if img:
+                image_contents.append(ImageContent(
+                    path_task = img,
+                ))
 
         author = self.create_author(
             name=f"{user_name} ({user_username})",
@@ -282,8 +287,7 @@ class IwaraParser(BaseParser):
         )
         return self.result(
             title = image_title,
-            text = send_info,
             author = author,
-            contents = image_contents,
+            contents = [text, *image_contents],
             url=f"https://www.iwara.tv/image/{image_id}"
         )
