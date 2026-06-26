@@ -486,6 +486,60 @@
                         "default": ""
                     }
                 }
+            },
+            "iwara": {
+                "name": "Iwara解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "选填",
+                        "type": "text",
+                        "default": ""
+                    },
+                    "video_quality": {
+                        "description": "Iwara视频分辨率",
+                        "hint": "下载Iwara视频的分辨率",
+                        "type": "string",
+                        "options": [
+                            "360",
+                            "540",
+                            "preview",
+                            "Source"
+                        ],
+                        "labels": [
+                            "360P",
+                            "540P",
+                            "Preview",
+                            "原画"
+                        ],
+                        "default": "Source"
+                    },
+                    "nsfw": {
+                        "description": "R18 视频处理方式",
+                        "type": "string",
+                        "options": [
+                            "send",
+                            "blur",
+                            "ignore"
+                        ],
+                        "labels": [
+                            "正常发送",
+                            "模糊处理后发送",
+                            "忽略"
+                        ],
+                        "default": "模糊处理后发送"
+                    }
+                }
             }
         }
     }
