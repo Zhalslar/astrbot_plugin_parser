@@ -180,6 +180,7 @@ class ParserConfig(ConfigNodeContainer):
     xhs: ParserItem
     youtube: ParserItem
     iwara: ParserItem
+    shipinhao: ParserItem
 
     def __init__(self, nodes: list[dict[str, Any]]):
         super().__init__(nodes, item_cls=ParserItem)
