@@ -426,6 +426,8 @@ class BilibiliParser(BaseParser):
             no_dolby_video=True,
             no_hdr=True,
         )
+        if not streams:
+            raise DownloadException("未找到可下载的视频流（可能是所选编码无对应流）")
         video_stream = streams[0]
         if not isinstance(video_stream, VideoStreamDownloadURL):
             raise DownloadException("未找到可下载的视频流")
@@ -433,7 +435,7 @@ class BilibiliParser(BaseParser):
             f"视频流质量: {video_stream.video_quality.name}, 编码: {video_stream.video_codecs}"
         )
 
-        audio_stream = streams[1]
+        audio_stream = streams[1] if len(streams) > 1 else None
         if not isinstance(audio_stream, AudioStreamDownloadURL):
             return video_stream.url, None
         logger.debug(f"音频流质量: {audio_stream.audio_quality.name}")
