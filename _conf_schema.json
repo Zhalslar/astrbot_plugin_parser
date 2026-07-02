@@ -1,4 +1,4 @@
-{
+﻿{
     "whitelist": {
         "description": "解析白名单",
         "hint": "请填写会话ID (可用命令sid查看), 一旦添加了白名单，则只有白名单会话发的链接会触发解析，优先级比黑名单高。留空表示不限制",
@@ -234,6 +234,27 @@
                     "cookies": {
                         "description": "Cookies",
                         "hint": "选填",
+                        "type": "text",
+                        "default": ""
+                    }
+                }
+            },
+            "shipinhao": {
+                "name": "微信视频号解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "cookies": {
+                        "description": "腾讯元宝 Cookie",
+                        "hint": "解析视频号视频必填：登录 yuanbao.tencent.com 后复制其 Cookie 粘贴于此（借元宝登录态换取视频直链）",
                         "type": "text",
                         "default": ""
                     }
