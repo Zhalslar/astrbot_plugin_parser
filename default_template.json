@@ -38,5 +38,11 @@
     "cookies": "",
     "show_body_text": true,
     "video_send_mode": "first"
+  },
+  {
+    "__template_key": "twitter",
+    "enable": true,
+    "use_proxy": false,
+    "cookies": ""
   }
 ]

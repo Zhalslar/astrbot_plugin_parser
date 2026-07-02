@@ -43,10 +43,13 @@ class TwitterParser(BaseParser):
                 raise ClientError(f"xdown API {resp.status} {resp.reason}")
             return await resp.json()
 
-    @handle("x.com", r"https?://x.com/[0-9-a-zA-Z_]{1,20}/status/([0-9]+)")
+    # https://x.com/jack/status/20 ; https://twitter.com/jack/status/20
+    # 兼容 twitter.com/mobile./www. 前缀、/i/web/status/ 等路径，以及无协议头链接
+    @handle("x.com", r"x\.com/(?:[A-Za-z0-9_]+/)*status/\d+")
+    @handle("twitter.com", r"twitter\.com/(?:[A-Za-z0-9_]+/)*status/\d+")
     async def _parse(self, searched: re.Match[str]) -> ParseResult:
-        # 从匹配对象中获取原始URL
-        url = searched.group(0)
+        # 从匹配对象中获取原始URL（补全协议头）
+        url = f"https://{searched.group(0)}"
         resp = await self._req_xdown_api(url)
         if resp.get("status") != "ok":
             raise ParseException("解析失败")
