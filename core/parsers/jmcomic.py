@@ -198,13 +198,15 @@ class JMComicParser(BaseParser):
             send_groups: list[SendGroup] = []
             
             # 封面处理
+            cover_contents: list[MediaContent] = []
             if self.mycfg.nsfw != "ignore": # 不忽略
-                IMG_PATH =await self.downloader.download_img(album_cover_url, proxy=self.proxy)
-                if self.mycfg.nsfw == "blur": # 模糊后发送
-                    IMG_PATH = self._blur(IMG_PATH,radius=5)
-                cover_contents: list[MediaContent] = [ImageContent(IMG_PATH)]
-            else:
-                cover_contents: list[MediaContent] = []
+                IMG_PATH = await self.downloader.download_img(album_cover_url, proxy=self.proxy)
+                if IMG_PATH is None:
+                    logger.warning(f"[parserplugin-jmcomic] 封面下载失败，跳过封面处理: {album_cover_url}")
+                else:
+                    if self.mycfg.nsfw == "blur": # 模糊后发送
+                        IMG_PATH = self._blur(IMG_PATH, radius=5)
+                    cover_contents = [ImageContent(IMG_PATH)]
 
             # 详情文字
             send_text = (
@@ -226,12 +228,12 @@ class JMComicParser(BaseParser):
             ))
 
             # 发送处理
-            send_mode = self.mycfg.image_send_mode
+            send_mode = self.mycfg.image_send_mode or "pdf"
             if send_mode != "ignore":
                 urls = [p.img_url for p in list(photo_detail)]
 
                 if self.mycfg.max_page and len(urls) > self.mycfg.max_page:
-                    extra_info = f"\n当前漫画页数 {len(urls)}，超过最大页数 {self.mycfg.max_page}，跳过解析。"
+                    extra_info += f"\n当前漫画页数 {len(urls)}，超过最大页数 {self.mycfg.max_page}，跳过解析。"
                 
                 else:
                     img_paths = asyncio.create_task(self._download_all_photo(photo_detail))
