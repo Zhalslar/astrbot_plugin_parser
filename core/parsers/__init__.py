@@ -15,6 +15,7 @@ from .youtube import YouTubeParser
 from .zhihu import ZhihuParser
 from .iwara import IwaraParser
 from .shipinhao import ShipinhaoParser
+from .jmcomic import JMComicParser
 
 __all__ = [
     "BaseParser",
@@ -34,4 +35,5 @@ __all__ = [
     "ZhihuParser",
     "IwaraParser",
     "ShipinhaoParser",
+    "JMComicParser",
 ]

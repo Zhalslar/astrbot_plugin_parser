@@ -1,4 +1,4 @@
-﻿{
+{
     "whitelist": {
         "description": "解析白名单",
         "hint": "请填写会话ID (可用命令sid查看), 一旦添加了白名单，则只有白名单会话发的链接会触发解析，优先级比黑名单高。留空表示不限制",
@@ -558,7 +558,58 @@
                             "模糊处理后发送",
                             "忽略"
                         ],
-                        "default": "模糊处理后发送"
+                        "default": "blur"
+                    }
+                }
+            },
+            "jmcomic": {
+                "name": "JMComic解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "image_send_mode": {
+                        "description": "漫画发送方式",
+                        "type": "string",
+                        "default": "pdf",
+                        "options": [
+                            "merge",
+                            "pdf",
+                            "ignore"
+                        ],
+                        "labels": [
+                            "合并发送(会封号，不推荐)",
+                            "发送PDF",
+                            "不发送"
+                        ]
+                    },
+                    "nsfw": {
+                        "description": "漫画封面处理方式",
+                        "type": "string",
+                        "options": [
+                            "send",
+                            "blur",
+                            "ignore"
+                        ],
+                        "labels": [
+                            "正常发送",
+                            "模糊处理后发送",
+                            "忽略"
+                        ],
+                        "default": "blur"
+                    },
+                    "max_page": {
+                        "description": "最大页数",
+                        "hint": "发送漫画时接受的最大页数，超过则跳过下载发送。0则不限制",
+                        "type": "int",
+                        "default": 50
                     }
                 }
             }

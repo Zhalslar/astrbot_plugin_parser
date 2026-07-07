@@ -154,10 +154,12 @@ class ParserItem(ConfigNode):
     use_proxy: bool
     cookies: str | None
     show_body_text: bool | None
+    image_send_mode: str | None
     video_send_mode: str | None
     video_codec_list: list | None
     video_quality: str | None
     nsfw: str | None
+    max_page: int | None
 
     @property
     def name(self) -> str:
@@ -181,6 +183,7 @@ class ParserConfig(ConfigNodeContainer):
     youtube: ParserItem
     iwara: ParserItem
     shipinhao: ParserItem
+    jmcomic: ParserItem
 
     def __init__(self, nodes: list[dict[str, Any]]):
         super().__init__(nodes, item_cls=ParserItem)
