@@ -14,7 +14,7 @@ from .base import BaseParser, handle
 
 
 class TwitterParser(BaseParser):
-    # 平台信息
+
     platform: ClassVar[Platform] = Platform(name="twitter", display_name="推特")
 
     def __init__(self, config: PluginConfig, downloader: Downloader):
@@ -43,10 +43,23 @@ class TwitterParser(BaseParser):
                 raise ClientError(f"xdown API {resp.status} {resp.reason}")
             return await resp.json()
 
-    @handle("x.com", r"https?://x.com/[0-9-a-zA-Z_]{1,20}/status/([0-9]+)")
+    @handle(
+        "twitter.com",
+        (
+            r"(?<![A-Za-z0-9.-])(?:(?:www|mobile)\.)?twitter\.com/"
+            r"(?:[A-Za-z0-9_]+/)*status/\d+"
+        ),
+    )
+    @handle(
+        "x.com",
+        (
+            r"(?<![A-Za-z0-9.-])(?:www\.)?x\.com/"
+            r"(?:[A-Za-z0-9_]+/)*status/\d+"
+        ),
+    )
     async def _parse(self, searched: re.Match[str]) -> ParseResult:
         # 从匹配对象中获取原始URL
-        url = searched.group(0)
+        url = f"https://{searched.group(0)}"
         resp = await self._req_xdown_api(url)
         if resp.get("status") != "ok":
             raise ParseException("解析失败")
