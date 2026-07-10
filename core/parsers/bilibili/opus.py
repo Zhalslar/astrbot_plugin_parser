@@ -113,7 +113,9 @@ class OpusItem(Struct):
 
     @property
     def name_avatar(self) -> tuple[str, str]:
-        author_module = next(module.module_author for module in self.item.modules if module.module_author)
+        author_module = next(
+            module.module_author for module in self.item.modules if module.module_author
+        )
         return author_module.name, author_module.face
 
     @property
@@ -131,7 +133,9 @@ class OpusItem(Struct):
                 for paragraph in module.module_content.paragraphs:
                     # 处理文本段落
                     if paragraph.text and paragraph.text.nodes:
-                        text_content = self._extract_text_from_nodes(paragraph.text.nodes)
+                        text_content = self._extract_text_from_nodes(
+                            paragraph.text.nodes
+                        )
                         text_content = text_content.strip()
                         if text_content:
                             yield TextNode(text="\n\n" + text_content)

@@ -1,4 +1,3 @@
-
 """
 from re import Match
 from typing import ClassVar

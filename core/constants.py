@@ -1,4 +1,3 @@
-
 from typing import Final
 
 COMMON_HEADER: Final[dict[str, str]] = {
@@ -21,4 +20,3 @@ ANDROID_HEADER: Final[dict[str, str]] = {
         "Chrome/132.0.0.0 Mobile Safari/537.36 Edg/132.0.0.0"
     )
 }
-

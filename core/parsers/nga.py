@@ -82,7 +82,6 @@ class NGAParser(BaseParser):
                             headers=clean_headers,
                             allow_redirects=True,
                         ) as retry_resp:
-
                             html = await retry_resp.text()
                             # 用 retry_resp 的状态继续后面的检查
                             resp = retry_resp

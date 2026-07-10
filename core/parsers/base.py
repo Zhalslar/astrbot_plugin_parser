@@ -118,8 +118,7 @@ class BaseParser:
         """获取当前实例的 session，惰性创建"""
         if self._session is None or self._session.closed:
             self._session = ClientSession(
-                proxy=self.proxy,
-                timeout=ClientTimeout(total=self.cfg.common_timeout)
+                proxy=self.proxy, timeout=ClientTimeout(total=self.cfg.common_timeout)
             )
         return self._session
 

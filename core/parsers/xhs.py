@@ -72,7 +72,12 @@ class XHSParser(BaseParser):
         json_obj = self._extract_initial_state_json(html)
 
         # ["note"]["noteDetailMap"][xhs_id]["note"]
-        note_data = json_obj.get("note", {}).get("noteDetailMap", {}).get(xhs_id, {}).get("note", {})
+        note_data = (
+            json_obj.get("note", {})
+            .get("noteDetailMap", {})
+            .get(xhs_id, {})
+            .get("note", {})
+        )
         if not note_data:
             raise ParseException("can't find note detail in json_obj")
 

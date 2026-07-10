@@ -279,8 +279,7 @@ class DouyinParser(BaseParser):
     @staticmethod
     def _build_play_url(video_id: str, ratio: str) -> str:
         return (
-            "https://aweme.snssdk.com/aweme/v1/play/"
-            f"?video_id={video_id}&ratio={ratio}"
+            f"https://aweme.snssdk.com/aweme/v1/play/?video_id={video_id}&ratio={ratio}"
         )
 
     def _build_media_headers(self, referer: str) -> dict[str, str]:

@@ -93,7 +93,9 @@ class VideoInfoRes(Struct):
 
 
 class VideoOrNotePage(Struct):
-    video_info_res: VideoInfoRes = field(name="videoInfoRes", default_factory=VideoInfoRes)
+    video_info_res: VideoInfoRes = field(
+        name="videoInfoRes", default_factory=VideoInfoRes
+    )
 
 
 class LoaderData(Struct):
@@ -111,4 +113,6 @@ class RouterData(Struct):
             return page.video_info_res.video_data
         elif page := self.loader_data.note_page:
             return page.video_info_res.video_data
-        raise ParseException("can't find video_(id)/page or note_(id)/page in router data")
+        raise ParseException(
+            "can't find video_(id)/page or note_(id)/page in router data"
+        )

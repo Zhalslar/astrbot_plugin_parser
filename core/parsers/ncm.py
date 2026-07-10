@@ -13,9 +13,7 @@ from .base import BaseParser, handle
 class NCMParser(BaseParser):
     """网易云音乐解析器"""
 
-    platform: ClassVar[Platform] = Platform(
-        name="ncm", display_name="网易云"
-    )
+    platform: ClassVar[Platform] = Platform(name="ncm", display_name="网易云")
 
     def __init__(self, config: PluginConfig, downloader: Downloader):
         super().__init__(config, downloader)
@@ -25,13 +23,11 @@ class NCMParser(BaseParser):
         if self.cookiejar.cookies_str:
             self.headers["cookie"] = self.cookiejar.cookies_str
 
-
     @handle("163cn.tv", r"163cn\.tv/(?P<short_key>\w+)")
     async def _parse_short(self, searched: Match[str]):
         short_url = f"https://163cn.tv/{searched.group('short_key')}"
         # 让框架跟随 302 后再走通用解析
         return await self.parse_with_redirect(short_url)
-
 
     @handle("y.music.163.com", r"y\.music\.163\.com/m/song\?.*id=(?P<song_id>\d+)")
     @handle("music.163.com", r"music\.163\.com/#/song\?.*id=(?P<song_id>\d+)")
@@ -89,7 +85,7 @@ class NCMParser(BaseParser):
         )
 
     # 3. 直链 mp3 —— 直接下载
-    @handle("music.126.net",r"https?://[^/]*music\.126\.net/.*\.mp3(?:\?.*)?$")
+    @handle("music.126.net", r"https?://[^/]*music\.126\.net/.*\.mp3(?:\?.*)?$")
     async def _parse_direct_mp3(self, searched: Match[str]):
         url = searched.group(0)  # 整条 url
         audio = self.create_audio_content(url)

@@ -14,7 +14,6 @@ from .base import BaseParser, handle
 
 
 class TwitterParser(BaseParser):
-
     platform: ClassVar[Platform] = Platform(name="twitter", display_name="推特")
 
     def __init__(self, config: PluginConfig, downloader: Downloader):

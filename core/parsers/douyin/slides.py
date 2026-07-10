@@ -52,7 +52,11 @@ class SlidesData(Struct):
 
     @property
     def dynamic_urls(self) -> list[str]:
-        return [choice(image.video.play_addr.url_list) for image in self.images if image.video]
+        return [
+            choice(image.video.play_addr.url_list)
+            for image in self.images
+            if image.video
+        ]
 
 
 class SlidesInfo(Struct):

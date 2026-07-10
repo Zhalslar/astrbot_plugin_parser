@@ -137,9 +137,7 @@ class ShipinhaoParser(BaseParser):
         }
         payload = {"baseReq": {"generalToken": token}, "exportId": export_id}
 
-        async with self.session.post(
-            api_url, json=payload, headers=headers
-        ) as resp:
+        async with self.session.post(api_url, json=payload, headers=headers) as resp:
             if resp.status >= 400:
                 raise ClientError(f"视频号预览接口 {resp.status} {resp.reason}")
             data: dict[str, Any] = await resp.json()

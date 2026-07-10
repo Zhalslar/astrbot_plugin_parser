@@ -45,7 +45,6 @@ class ParserPlugin(Star):
         # 关键词 -> 正则 列表
         self.key_pattern_list: list[tuple[str, re.Pattern[str]]] = []
 
-
     async def initialize(self):
         """加载、重载插件时触发"""
         # 加载渲染器资源
