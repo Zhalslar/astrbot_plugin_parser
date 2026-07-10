@@ -1,5 +1,23 @@
 # 更新日志
 
+## v1.5.2
+
+### 新增
+
+- 增加 iwara 视频 / 图片解析器 @sssysy
+- 新增微信视频号(shipinhao)解析器 @anon0v0
+
+### 优化
+
+- 扩展 Twitter 解析器，使其能够同时处理 twitter.com 和 x.com URL，并规范化处理 @Zhalslar
+
+- 基于 SSR 为抖音链接新增规范分享页解析能力 @piexian
+
+### 修复
+
+- 修复本地媒体发送时的文件路径问题 @piexian
+- 无匹配视频流时优雅报错，避免 IndexError 中断解析 @anon0v0
+
 ## v1.5.1
 
 变更:
