@@ -2,12 +2,11 @@ import asyncio
 import hashlib
 import html
 import json
-from pathlib import Path
 import random
 import re
 import time
-from urllib.parse import parse_qs, urlparse
 from typing import Any, ClassVar
+from urllib.parse import urlparse
 
 from curl_cffi import requests as curl_requests
 
@@ -16,7 +15,6 @@ from ..data import MediaContent, Platform, SendGroup, TextContent, VideoContent
 from ..download import Downloader
 from ..exception import ParseException
 from .base import BaseParser, handle
-
 
 V4_EP = (
     "V1ZCERzVgMWrKv+VcTl5QmS9JuPWLOQ8A0mACeTyYXtTbiguOrHhwaqnagZ6zdAgF"
