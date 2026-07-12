@@ -1,17 +1,18 @@
+import hashlib
+from datetime import datetime
+from pathlib import Path
 from re import Match
 from typing import ClassVar
-import hashlib
+from urllib.parse import parse_qs, urlparse
+
 from curl_cffi import requests as curl_requests
-from urllib.parse import urlparse, parse_qs
-from datetime import datetime
 from PIL import Image, ImageFilter
-from pathlib import Path
 
 from ..config import PluginConfig
-from ..data import ParseResult, Platform, VideoContent, ImageContent, TextContent
+from ..data import ImageContent, ParseResult, Platform, TextContent, VideoContent
 from ..download import Downloader
-from .base import BaseParser, handle
 from ..exception import ParseException
+from .base import BaseParser, handle
 
 _IMPERSONATE = "chrome120"
 IWARA_SALT = "_mSvL05GfEmeEmsEYfGCnVpEjYgTJraJN"
