@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlparse
 
 import msgspec
@@ -78,7 +78,7 @@ class DouyinParser(BaseParser):
 
     # https://www.douyin.com/video/7521023890996514083
     # https://www.douyin.com/note/7469411074119322899
-    @handle("", r"(?<!\d)(?P<vid>\d{18,20})(?!\d)")
+    @handle("", r"(?<![A-Za-z0-9_/=:%?&.-])(?P<vid>\d{18,20})(?!\d)")
     @handle("aweme_id", r"aweme_id[=:/\s]+(?P<vid>\d{10,})")
     @handle("aweme", r"aweme/(?P<vid>\d{10,})")
     @handle("douyin", r"douyin\.com/(?P<ty>video|note)/(?P<vid>\d+)")
