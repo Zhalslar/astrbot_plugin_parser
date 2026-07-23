@@ -257,6 +257,31 @@ class PixivHelper:
             loop=0,
         )
 
+    @staticmethod
+    def build_pdf_from_zip_sync(
+        zip_path: Path, frames: list[dict[str, Any]], pdf_path: Path
+    ) -> Path:
+        """从动图 zip 中提取帧并合成为 PDF"""
+        images: list[Image.Image] = []
+        with zipfile.ZipFile(zip_path) as zf:
+            for frame in frames:
+                file_name = frame.get("file", "")
+                if not file_name:
+                    continue
+                with zf.open(file_name) as f:
+                    img = Image.open(f)
+                    img.load()
+                    images.append(img.convert("RGB"))
+        if not images:
+            raise ParseException("动图帧提取失败")
+        images[0].save(
+            pdf_path,
+            "PDF",
+            save_all=True,
+            append_images=images[1:],
+        )
+        return pdf_path
+
 
 class PixivParser(BaseParser):
 
@@ -307,8 +332,34 @@ class PixivParser(BaseParser):
         )
         return gif_path
 
+    async def _build_ugoira_pdf(
+        self, pid: str, meta_body: dict[str, Any]
+    ) -> Path:
+        """动图 R18：下载 zip → 提取帧 → 合成 PDF（不打码）"""
+        zip_url = meta_body.get("originalSrc") or meta_body.get("src", "")
+        if not zip_url:
+            raise ParseException("动图元数据缺少 zip 地址")
+        frames = meta_body.get("frames", [])
+        if not frames:
+            raise ParseException("动图帧数据为空")
+
+        zip_path = await self.downloader.download_file(
+            zip_url,
+            file_name=f"ugoira_{pid}.zip",
+            headers=PIXIV_IMG_HEADERS,
+            proxy=self.proxy,
+        )
+        pdf_path = self.cfg.cache_dir / f"pixiv_{pid}.pdf"
+        await asyncio.to_thread(
+            PixivHelper.build_pdf_from_zip_sync, zip_path, frames, pdf_path
+        )
+        return pdf_path
+
     def _nsfw_action(self, x_restrict: int) -> str | None:
-        """返回 'ignore' / 'blur' / None（正常发送）"""
+        """返回 'ignore' / 'blur' / None（正常发送）
+
+        'blur' 表示 R18 内容：封面模糊处理，正文合成为 PDF（不打码）
+        """
         if x_restrict <= 0:
             return None
         nsfw = self.mycfg.nsfw or "send"
@@ -486,46 +537,70 @@ class PixivParser(BaseParser):
         cover_url = body.get("urls", {}).get("regular", "")
         create_date = body.get("createDate", "")
 
-        # 封面
+        # 封面（R18 时模糊处理）
         cover_contents = await self._download_cover(cover_url, blur)
 
-        # 下载图片
-        content_contents: list[MediaContent] = []
-        if illust_type == 2:
-            # 动图 → GIF
-            meta = await self.api.get_ugoira_meta(pid)
-            gif_path = await self._build_gif(pid, meta)
-            content_contents.append(ImageContent(gif_path))
-        else:
-            # 静态插画
-            pages = await self.api.get_pages(pid)
-            img_urls = [p.get("urls", {}).get("original", "") for p in pages]
-            img_urls = [u for u in img_urls if u]
-            if not img_urls:
-                raise ParseException("未找到插画图片")
+        send_groups: list[SendGroup] = [
+            SendGroup(contents=[], render_card=True, force_merge=False),
+        ]
 
-            if blur:
-                paths = await self.downloader.download_imgs_without_raise(
-                    img_urls, headers=PIXIV_IMG_HEADERS, proxy=self.proxy
+        if blur:
+            # R18：封面已模糊，正文合成为 PDF（不打码）
+            if illust_type == 2:
+                # 动图 → 提取帧 → PDF
+                meta = await self.api.get_ugoira_meta(pid)
+                pdf_task = asyncio.create_task(
+                    self._build_ugoira_pdf(pid, meta)
                 )
-                for p in paths:
-                    blurred = PixivHelper.blur(p, radius=10)
-                    content_contents.append(ImageContent(blurred))
             else:
+                # 静态插画 → 下载 → PDF
+                pages = await self.api.get_pages(pid)
+                img_urls = [p.get("urls", {}).get("original", "") for p in pages]
+                img_urls = [u for u in img_urls if u]
+                if not img_urls:
+                    raise ParseException("未找到插画图片")
+                img_paths_task = asyncio.create_task(
+                    self.downloader.download_imgs_without_raise(
+                        img_urls, headers=PIXIV_IMG_HEADERS, proxy=self.proxy
+                    )
+                )
+                pdf_task = asyncio.create_task(
+                    self._build_pdf(img_paths_task, pid)
+                )
+            send_groups.append(
+                SendGroup(
+                    contents=[FileContent(pdf_task, name=f"pixiv_{pid}.pdf")],
+                    render_card=False,
+                    force_merge=False,
+                )
+            )
+        else:
+            # 非 R18：正常发送图片
+            content_contents: list[MediaContent] = []
+            if illust_type == 2:
+                # 动图 → GIF
+                meta = await self.api.get_ugoira_meta(pid)
+                gif_path = await self._build_gif(pid, meta)
+                content_contents.append(ImageContent(gif_path))
+            else:
+                # 静态插画
+                pages = await self.api.get_pages(pid)
+                img_urls = [p.get("urls", {}).get("original", "") for p in pages]
+                img_urls = [u for u in img_urls if u]
+                if not img_urls:
+                    raise ParseException("未找到插画图片")
                 content_contents.extend(
                     self.create_image_contents(
                         img_urls, headers=PIXIV_IMG_HEADERS
                     )
                 )
-
-        send_groups: list[SendGroup] = [
-            SendGroup(contents=[], render_card=True, force_merge=False),
-            SendGroup(
-                contents=content_contents,
-                render_card=False,
-                force_merge=False,
-            ),
-        ]
+            send_groups.append(
+                SendGroup(
+                    contents=content_contents,
+                    render_card=False,
+                    force_merge=False,
+                )
+            )
 
         extra: dict[str, Any] = {}
         if page_count > 1:
