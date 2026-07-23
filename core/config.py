@@ -158,6 +158,7 @@ class ParserItem(ConfigNode):
     video_codec_list: list | None
     video_quality: str | None
     nsfw: str | None
+    max_page: int | None
 
     @property
     def name(self) -> str:
