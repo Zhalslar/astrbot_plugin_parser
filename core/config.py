@@ -181,6 +181,7 @@ class ParserConfig(ConfigNodeContainer):
     youtube: ParserItem
     iwara: ParserItem
     shipinhao: ParserItem
+    pixiv: ParserItem
 
     def __init__(self, nodes: list[dict[str, Any]]):
         super().__init__(nodes, item_cls=ParserItem)
