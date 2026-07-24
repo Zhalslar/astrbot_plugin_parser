@@ -15,6 +15,7 @@ from .xhs import XHSParser
 from .xiaoheihe import XiaoheiheParser
 from .youtube import YouTubeParser
 from .zhihu import ZhihuParser
+from .pixiv import PixivParser
 
 __all__ = [
     "BaseParser",
@@ -34,4 +35,5 @@ __all__ = [
     "ZhihuParser",
     "IwaraParser",
     "ShipinhaoParser",
+    "PixivParser",
 ]

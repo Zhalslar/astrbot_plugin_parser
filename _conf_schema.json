@@ -558,7 +558,49 @@
                             "模糊处理后发送",
                             "忽略"
                         ],
-                        "default": "模糊处理后发送"
+                        "default": "blur"
+                    }
+                }
+            },
+            "pixiv": {
+                "name": "Pixiv解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "cookies": {
+                        "description": "Cookies",
+                        "hint": "必填！Pixiv API 需要 Cookie 才能正常访问",
+                        "type": "text",
+                        "default": ""
+                    },
+                    "nsfw": {
+                        "description": "R18 内容处理方式",
+                        "type": "string",
+                        "options": [
+                            "send",
+                            "blur",
+                            "ignore"
+                        ],
+                        "labels": [
+                            "正常发送",
+                            "封面模糊, 正文 PDF 发送",
+                            "忽略"
+                        ],
+                        "default": "send"
+                    },
+                    "max_page": {
+                        "description": "漫画最大页数",
+                        "hint": "发送漫画PDF时接受的最大页数，超过则跳过下载发送。0则不限制",
+                        "type": "int",
+                        "default": 0
                     }
                 }
             }
