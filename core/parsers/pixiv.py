@@ -1,5 +1,3 @@
-"""Pixiv 解析器：支持插画 / 漫画 / 小说"""
-
 import asyncio
 import html as html_module
 import re
@@ -127,7 +125,7 @@ class PixivAPI:
     async def get_manga_series_total(
         self, series_id: str, user_id: str
     ) -> int | None:
-        """漫画系列总话数：无 AJAX API，从系列页面 HTML 的 meta.description 提取"""
+        """取漫画系列总话数"""
         url = f"{PIXIV_BASE}/user/{user_id}/series/{series_id}"
         try:
             resp = await self.client.get(url)
@@ -356,10 +354,6 @@ class PixivParser(BaseParser):
         return pdf_path
 
     def _nsfw_action(self, x_restrict: int) -> str | None:
-        """返回 'ignore' / 'blur' / None（正常发送）
-
-        'blur' 表示 R18 内容：封面模糊处理，正文合成为 PDF（不打码）
-        """
         if x_restrict <= 0:
             return None
         nsfw = self.mycfg.nsfw or "send"
@@ -370,7 +364,7 @@ class PixivParser(BaseParser):
         return None
 
     async def _get_author(self, uid: str) -> Author:
-        """获取作者信息（API 不返回简介，仅名称和头像）"""
+        """获取作者信息"""
         body = await self.api.get_user_detail(uid)
         name = body.get("name", "未知作者")
         avatar_url = body.get("imageBig") or body.get("image")
@@ -545,7 +539,7 @@ class PixivParser(BaseParser):
         ]
 
         if blur:
-            # R18：封面已模糊，正文合成为 PDF（不打码）
+            # R18：封面已模糊，正文合成为 PDF
             if illust_type == 2:
                 # 动图 → 提取帧 → PDF
                 meta = await self.api.get_ugoira_meta(pid)
@@ -639,16 +633,27 @@ class PixivParser(BaseParser):
         # max_page 限制
         max_page = self.mycfg.max_page or 0
         if max_page > 0 and page_count > max_page:
-            skip_contents = await self._download_cover(cover_url, False)
+            cover_contents = await self._download_cover(cover_url, blur)
+            max_page_msg = (
+                f"漫画共 {page_count} 页，超过最大页数 {max_page}，跳过下载。"
+            )
+            extra: dict[str, Any] = {}
+            if extra_info:
+                extra["info"] = f"{extra_info}\n{max_page_msg}"
+            else:
+                extra["info"] = max_page_msg
             return self.result(
                 author=author,
                 title=title,
                 text=text,
                 url=f"{PIXIV_BASE}/artworks/{pid}",
-                contents=skip_contents,
-                extra={
-                    "info": f"漫画共 {page_count} 页，超过最大页数 {max_page}，跳过下载。"
-                },
+                contents=cover_contents,
+                send_groups=[ # 如果只构建卡片会再发一次纯文本，不确定是不是sender的bug，先用发送封面图缓解
+                    SendGroup(contents=[], render_card=True, force_merge=False),
+                    SendGroup(contents=cover_contents, render_card=False, force_merge=False),
+                ],
+                timestamp=PixivHelper.parse_timestamp(create_date),
+                extra=extra,
             )
 
         # 封面
