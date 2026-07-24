@@ -96,7 +96,21 @@ class PixivAPI:
         return await self._get(f"/ajax/illust/{pid}/pages")  # type: ignore[return-value]
 
     async def get_ugoira_meta(self, pid: str) -> dict[str, Any]:
-        return await self._get(f"/ajax/illust/{pid}/ugoira/meta")  # type: ignore[return-value]
+        return await self._get(f"/ajax/illust/{pid}/ugoira_meta")  # type: ignore[return-value]
+
+    async def get_ugoira_meta_safe(self, pid: str) -> dict[str, Any] | None:
+        """获取动图元数据，404 或其他错误时返回 None（调用方可回退为普通插画）"""
+        url = f"{PIXIV_BASE}/ajax/illust/{pid}/ugoira_meta"
+        try:
+            resp = await self.client.get(url)
+        except httpx.HTTPError:
+            return None
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        if data.get("error"):
+            return None
+        return data["body"]  # type: ignore[return-value]
 
     # ---- 用户 ----
 
@@ -535,6 +549,13 @@ class PixivParser(BaseParser):
         # 封面（R18 时模糊处理）
         cover_contents = await self._download_cover(cover_url, blur)
 
+        # 动图：尝试获取 ugoira meta，失败时回退为普通插画
+        ugoira_meta: dict[str, Any] | None = None
+        if illust_type == 2:
+            ugoira_meta = await self.api.get_ugoira_meta_safe(pid)
+            if ugoira_meta is None:
+                illust_type = 0  # 回退为普通插画处理
+
         send_groups: list[SendGroup] = [
             SendGroup(contents=[], render_card=True, force_merge=False),
         ]
@@ -543,9 +564,8 @@ class PixivParser(BaseParser):
             # R18：封面已模糊，正文合成为 PDF
             if illust_type == 2:
                 # 动图 → 提取帧 → PDF
-                meta = await self.api.get_ugoira_meta(pid)
                 pdf_task = asyncio.create_task(
-                    self._build_ugoira_pdf(pid, meta)
+                    self._build_ugoira_pdf(pid, ugoira_meta)  # type: ignore[arg-type]
                 )
             else:
                 # 静态插画 → 下载 → PDF
@@ -574,8 +594,7 @@ class PixivParser(BaseParser):
             content_contents: list[MediaContent] = []
             if illust_type == 2:
                 # 动图 → GIF
-                meta = await self.api.get_ugoira_meta(pid)
-                gif_path = await self._build_gif(pid, meta)
+                gif_path = await self._build_gif(pid, ugoira_meta)  # type: ignore[arg-type]
                 content_contents.append(ImageContent(gif_path))
             else:
                 # 静态插画
@@ -600,6 +619,9 @@ class PixivParser(BaseParser):
         extra: dict[str, Any] = {}
         if page_count > 1:
             extra["info"] = f"共 {page_count} 张"
+        if ugoira_meta is None and int(body.get("illustType", 0)) == 2:
+            fallback_msg = "动图元数据获取失败，已回退为静态图片"
+            extra["info"] = f"{extra['info']}\n{fallback_msg}" if extra.get("info") else fallback_msg
 
         return self.result(
             author=author,
