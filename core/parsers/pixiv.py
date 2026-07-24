@@ -404,6 +404,7 @@ class PixivParser(BaseParser):
             if series_id and user_id
             else ""
         )
+        series_label = "小说系列" if series_type == "novel" else "漫画系列"
 
         total: int | None = None
         if series_id:
@@ -417,11 +418,11 @@ class PixivParser(BaseParser):
         if total is not None:
             return (
                 f"总共 {total} 话，现在下载第 {order} 话\n"
-                f"漫画系列: {series_url}"
+                f"{series_label}: {series_url}"
             )
         return (
             f"系列: {series_title}\n当前下载第 {order} 话\n"
-            f"漫画系列: {series_url}"
+            f"{series_label}: {series_url}"
         )
 
 
