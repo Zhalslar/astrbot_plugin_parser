@@ -27,7 +27,7 @@ class Author(Struct):
     face: str
     mid: int
     pub_time: str
-    pub_ts: int
+    pub_ts: int | str
 
 
 class Image(Struct):
