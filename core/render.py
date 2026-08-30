@@ -226,6 +226,77 @@ class RenderContext:
     """当前绘制位置（绘制阶段使用）"""
 
 
+def wrap_text(text: str | None, max_width: int, font_info: FontInfo) -> list[str]:
+    """优化的文本自动换行算法，考虑中英文字符宽度相同
+
+    Args:
+        text: 要处理的文本
+        max_width: 最大宽度（像素）
+        font_info: 字体信息对象
+
+    Returns:
+        换行后的文本列表
+    """
+    if not text:
+        return []
+
+    lines: list[str] = []
+    paragraphs = text.splitlines()
+
+    def is_punctuation(char: str) -> bool:
+        """判断是否为不能为行首的标点符号"""
+        return (
+            char in "，。！？；：、）】》〉」』〕〗〙〛…—·" or char in ",.;:!?)]}"
+        )
+
+    for paragraph in paragraphs:
+        if not paragraph:
+            lines.append("")
+            continue
+
+        current_line = ""
+        current_line_width = 0
+        remaining_text = paragraph
+
+        while remaining_text:
+            next_char = remaining_text[0]
+            char_width = font_info.get_char_width_fast(next_char)
+            # 如果当前行为空，直接添加字符
+            if not current_line:
+                current_line = next_char
+                current_line_width = char_width
+                remaining_text = remaining_text[1:]
+                continue
+
+            # 如果是标点符号，直接添加到当前行（标点符号不应该单独成行）
+            if is_punctuation(next_char):
+                current_line += next_char
+                current_line_width += char_width
+                remaining_text = remaining_text[1:]
+                continue
+
+            # 测试添加下一个字符后的宽度
+            test_width = current_line_width + char_width
+
+            if test_width <= max_width:
+                # 宽度合适，继续添加
+                current_line += next_char
+                current_line_width = test_width
+                remaining_text = remaining_text[1:]
+            else:
+                # 宽度超限，需要断行
+                lines.append(current_line)
+                current_line = next_char
+                current_line_width = char_width
+                remaining_text = remaining_text[1:]
+
+        # 保存最后一行
+        if current_line:
+            lines.append(current_line)
+
+    return lines
+
+
 class Renderer:
     """统一的渲染器，将解析结果转换为消息"""
 
@@ -386,6 +457,16 @@ class Renderer:
         Returns:
             PIL Image 对象
         """
+        # bilibili 视频使用专属预览卡片
+        if (
+            not_repost
+            and result.platform.name == "bilibili"
+            and result.extra.get("card")
+        ):
+            from .bili_card import BiliVideoCardRenderer
+
+            return await BiliVideoCardRenderer(self).render(result)
+
         # 计算必要参数
         card_width = self.DEFAULT_CARD_WIDTH
         content_width = card_width - 2 * self.PADDING
@@ -485,10 +566,14 @@ class Renderer:
             return cover_img
 
     @suppress_exception
-    def _load_and_process_avatar(self, avatar: Path | None) -> PILImage | None:
+    def _load_and_process_avatar(
+        self, avatar: Path | None, size: int | None = None
+    ) -> PILImage | None:
         """加载并处理头像（圆形裁剪，带抗锯齿）"""
         if not avatar or not avatar.exists():
             return None
+
+        size = size or self.AVATAR_SIZE
 
         with Image.open(avatar) as original_img:
             # 转换为 RGBA 模式（用于更好的抗锯齿效果）
@@ -499,7 +584,7 @@ class Renderer:
 
             # 使用超采样技术提高质量：先放大到指定倍数
             scale = self.AVATAR_UPSCALE_FACTOR
-            temp_size = self.AVATAR_SIZE * scale
+            temp_size = size * scale
             avatar_img = avatar_img.resize(
                 (temp_size, temp_size),
                 Image.Resampling.LANCZOS,
@@ -521,7 +606,7 @@ class Renderer:
 
             # 缩小到目标尺寸（抗锯齿缩放）
             output_avatar = output_avatar.resize(
-                (self.AVATAR_SIZE, self.AVATAR_SIZE),
+                (size, size),
                 Image.Resampling.LANCZOS,
             )
 
@@ -1331,61 +1416,4 @@ class Renderer:
         Returns:
             换行后的文本列表
         """
-        if not text:
-            return []
-
-        lines: list[str] = []
-        paragraphs = text.splitlines()
-
-        def is_punctuation(char: str) -> bool:
-            """判断是否为不能为行首的标点符号"""
-            return (
-                char in "，。！？；：、）】》〉」』〕〗〙〛…—·" or char in ",.;:!?)]}"
-            )
-
-        for paragraph in paragraphs:
-            if not paragraph:
-                lines.append("")
-                continue
-
-            current_line = ""
-            current_line_width = 0
-            remaining_text = paragraph
-
-            while remaining_text:
-                next_char = remaining_text[0]
-                char_width = font_info.get_char_width_fast(next_char)
-                # 如果当前行为空，直接添加字符
-                if not current_line:
-                    current_line = next_char
-                    current_line_width = char_width
-                    remaining_text = remaining_text[1:]
-                    continue
-
-                # 如果是标点符号，直接添加到当前行（标点符号不应该单独成行）
-                if is_punctuation(next_char):
-                    current_line += next_char
-                    current_line_width += char_width
-                    remaining_text = remaining_text[1:]
-                    continue
-
-                # 测试添加下一个字符后的宽度
-                test_width = current_line_width + char_width
-
-                if test_width <= max_width:
-                    # 宽度合适，继续添加
-                    current_line += next_char
-                    current_line_width = test_width
-                    remaining_text = remaining_text[1:]
-                else:
-                    # 宽度超限，需要断行
-                    lines.append(current_line)
-                    current_line = next_char
-                    current_line_width = char_width
-                    remaining_text = remaining_text[1:]
-
-            # 保存最后一行
-            if current_line:
-                lines.append(current_line)
-
-        return lines
+        return wrap_text(text, max_width, font_info)

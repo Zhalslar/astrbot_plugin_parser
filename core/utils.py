@@ -191,6 +191,11 @@ def fmt_size(file_path: Path) -> str:
     return f"大小: {file_path.stat().st_size / 1024 / 1024:.2f} MB"
 
 
+def format_count(value: int) -> str:
+    """格式化计数, 超过一万时转换为万为单位"""
+    return f"{value / 10000:.1f}万" if value > 10000 else str(value)
+
+
 def generate_file_name(url: str, default_suffix: str = "") -> str:
     """根据 url 生成文件名
 

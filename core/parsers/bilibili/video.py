@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from msgspec import Struct
 
+from ...utils import format_count
 from .common import Upper
 
 
@@ -89,11 +90,26 @@ class VideoInfo(Struct):
         # 构建结果字符串
         result_parts = []
         for display_name, value in stats_mapping:
-            # 数值超过10000时转换为万为单位
-            formatted_value = f"{value / 10000:.1f}万" if value > 10000 else str(value)
-            result_parts.append(f"{display_name} {formatted_value}")
+            result_parts.append(f"{display_name} {format_count(value)}")
 
         return " ".join(result_parts)
+
+    @property
+    def card_data(self) -> dict:
+        """预览卡片渲染数据"""
+        return {
+            "bvid": self.bvid,
+            "desc": self.desc or None,
+            "stats": {
+                "view": self.stat.view,
+                "danmaku": self.stat.danmaku,
+                "like": self.stat.like,
+                "coin": self.stat.coin,
+                "favorite": self.stat.favorite,
+                "share": self.stat.share,
+                "reply": self.stat.reply,
+            },
+        }
 
     def extract_info_with_page(self, page_num: int = 1) -> PageInfo:
         """获取视频信息，包含页索引、标题、时长、封面

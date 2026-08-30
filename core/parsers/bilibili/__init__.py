@@ -166,6 +166,19 @@ class BilibiliParser(BaseParser):
             except Exception:
                 ai_summary = "哔哩哔哩 cookie 未配置或失效, 无法使用 AI 总结"
 
+        # 获取实时在线人数（尽力获取，失败不阻塞）
+        online: int | None = None
+        try:
+            online_info = await video.get_online(page_index=page_info.index)
+            online = online_info.get("total")
+        except Exception:
+            online = None
+
+        # 预览卡片数据
+        card_data = video_info.card_data
+        card_data["duration"] = page_info.duration
+        card_data["online"] = online
+
         url = f"https://bilibili.com/{video_info.bvid}"
         url += f"?p={page_info.index + 1}" if page_info.index > 0 else ""
 
@@ -209,7 +222,7 @@ class BilibiliParser(BaseParser):
             text=text,
             author=author,
             contents=[video_content],
-            extra={"info": ai_summary},
+            extra={"info": ai_summary, "card": card_data},
         )
 
     async def parse_dynamic(self, dynamic_id: int):
