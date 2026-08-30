@@ -65,7 +65,8 @@ _✨ 链接解析器 ✨_
 
 请在astrbot的插件配置面板查看并修改
 
-### QQ空间解析器
+<details>
+<summary><b>QQ空间相关配置说明</b></summary>
 
 QQ空间解析器作为可选模板提供，支持 `h5.qzone.qq.com/ugc/share`、`mobile.qzone.qq.com/l` 等公开分享链接，并优先解析动态中的原图/原视频。未配置登录态或登录态不可用时，会自动回退到公开分享页可获取的媒体。
 
@@ -78,6 +79,8 @@ QQ空间解析器作为可选模板提供，支持 `h5.qzone.qq.com/ugc/share`�
 SnowLuma HTTP 地址默认为 `http://127.0.0.1:3000`。这里填写的是 **OneBot HTTP API 地址，不是 WebSocket 地址**；如果 HTTP API 配置了 `access_token`，同时填写对应的 SnowLuma Access Token。QQ 本体已掉线或需要重新登录时，需要先恢复 QQ 登录，单独刷新 `p_skey` 无法恢复失效的 QQ 会话。
 
 > QQ空间登录态只用于回查当前公开分享动态对应的媒体详情，不用于绕过动态自身的访问权限。
+
+</details>
 
 ## 🎉 指令
 

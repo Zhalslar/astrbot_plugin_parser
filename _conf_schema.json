@@ -368,6 +368,12 @@
                         "hint": "选填, 小红书部分链接解析有水印, 填充Cookies可去除水印",
                         "type": "text",
                         "default": ""
+                    },
+                    "parse_original_image": {
+                        "description": "解析原图(无水印)",
+                        "hint": "开启后将获取无水印的原图，如果原图很大可能会拖慢解析速度",
+                        "type": "bool",
+                        "default": false
                     }
                 }
             },

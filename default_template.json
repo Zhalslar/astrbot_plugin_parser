@@ -29,6 +29,7 @@
     "__template_key": "xhs",
     "enable": true,
     "use_proxy": false,
+    "parse_original_image": false,
     "cookies": ""
   },
   {
