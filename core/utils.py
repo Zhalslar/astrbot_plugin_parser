@@ -232,7 +232,7 @@ def join_nonempty_texts(parts: list[object]) -> str:
     """拼接文本，跳过 None 和空串，避免 str.join 遇到空值崩溃。"""
     texts: list[str] = []
     for part in parts:
-        if not part:
+        if part is None or part == "":
             continue
         texts.append(str(part))
     return "".join(texts)
