@@ -228,6 +228,16 @@ def _clean_embedded_url(value: str) -> str:
     return unquote(value.strip().replace("\\/", "/"))
 
 
+def join_nonempty_texts(parts: list[object]) -> str:
+    """拼接文本，跳过 None 和空串，避免 str.join 遇到空值崩溃。"""
+    texts: list[str] = []
+    for part in parts:
+        if part is None or part == "":
+            continue
+        texts.append(str(part))
+    return "".join(texts)
+
+
 def extract_json_url(data: dict | str) -> str | None:
     """处理 JSON 类型消息段，提取可交给解析器处理的 URL。"""
     if isinstance(data, str):

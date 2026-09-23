@@ -22,7 +22,7 @@ from .core.download import Downloader
 from .core.parsers import BaseParser, BilibiliParser
 from .core.render import Renderer
 from .core.sender import MessageSender
-from .core.utils import extract_json_url
+from .core.utils import extract_json_url, join_nonempty_texts
 
 
 class ParserPlugin(Star):
@@ -113,7 +113,14 @@ class ParserPlugin(Star):
 
     @filter.event_message_type(filter.EventMessageType.ALL)
     async def on_message(self, event: AstrMessageEvent):
-        """消息的统一入口"""
+        """消息的统一入口。异常只写日志，避免堆栈发到群里。"""
+        try:
+            await self._handle_message(event)
+        except Exception:
+            logger.exception("解析消息失败，已跳过")
+
+    async def _handle_message(self, event: AstrMessageEvent):
+        """实际解析流程。"""
         umo = event.unified_msg_origin
 
         # 白名单
@@ -138,7 +145,7 @@ class ParserPlugin(Star):
         for seg in chain:
             if isinstance(seg, At):
                 mentioned_ids.add(str(seg.qq))
-            elif isinstance(seg, Plain):
+            elif isinstance(seg, Plain) and seg.text:
                 mentioned_ids.update(re.findall(r"<@!?([^>\s]+)>", seg.text))
         if (
             self.cfg.require_at_in_group
@@ -169,8 +176,9 @@ class ParserPlugin(Star):
                     reply_texts.append(seg.text)
                 elif isinstance(seg, Json):
                     reply_texts.append(extract_json_url(seg.data))
-            if reply_texts:
-                text = "".join(reply_texts)
+            reply_text = join_nonempty_texts(reply_texts)
+            if reply_text:
+                text = reply_text
 
         if not text:
             return
