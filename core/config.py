@@ -161,6 +161,11 @@ class ParserItem(ConfigNode):
     video_send_mode: str | None
     video_codec_list: list | None
     video_quality: str | None
+    video_codec: str | None
+    video_format: str | None
+    metube_url: str | None
+    wait_timeout: int | None
+    delete_after_fetch: bool | None
     nsfw: str | None
     max_page: int | None
     send_blue_links: bool | None
@@ -181,6 +186,7 @@ class ParserConfig(ConfigNodeContainer):
     douyin: ParserItem
     instagram: ParserItem
     kuaishou: ParserItem
+    metube: ParserItem
     ncm: ParserItem
     nga: ParserItem
     tiktok: ParserItem

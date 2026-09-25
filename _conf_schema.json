@@ -711,6 +711,110 @@
                         "default": 100
                     }
                 }
+            },
+            "metube": {
+                "name": "Metube 解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true,
+                        "hint": "启用后接管 YouTube 视频链接的解析（改为提交给 Metube 下载）；音频（ym 前缀）仍走原油管解析器"
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "hint": "仅对获取视频元信息（标题/封面等）生效，访问 Metube API 不走代理",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "metube_url": {
+                        "description": "Metube 服务地址",
+                        "hint": "如 http://127.0.0.1:8081。若 Metube 部署在反代子路径（URL_PREFIX），需带上路径，如 http://host:8081/metube",
+                        "type": "string",
+                        "default": "http://127.0.0.1:8081"
+                    },
+                    "video_quality": {
+                        "description": "清晰度上限",
+                        "hint": "先尝试该档，预估体积超过资源大小上限时自动逐级回退到不超限的最高档",
+                        "type": "string",
+                        "options": [
+                            "best",
+                            "worst",
+                            "2160",
+                            "1440",
+                            "1080",
+                            "720",
+                            "480",
+                            "360",
+                            "240"
+                        ],
+                        "labels": [
+                            "最高画质",
+                            "最低画质",
+                            "4K 2160P",
+                            "2K 1440P",
+                            "1080P",
+                            "720P",
+                            "480P",
+                            "360P",
+                            "240P"
+                        ],
+                        "default": "720"
+                    },
+                    "video_codec": {
+                        "description": "目标编码",
+                        "hint": "传给 Metube 的编码偏好（codec）。仅是偏好，无对应编码流时 Metube 会回退到最优流",
+                        "type": "string",
+                        "options": [
+                            "auto",
+                            "h264",
+                            "h265",
+                            "av1",
+                            "vp9"
+                        ],
+                        "labels": [
+                            "自动",
+                            "H.264",
+                            "H.265/HEVC",
+                            "AV1",
+                            "VP9"
+                        ],
+                        "default": "h264"
+                    },
+                    "video_format": {
+                        "description": "目标容器",
+                        "hint": "传给 Metube 的格式（format）。mp4 会强制选择 mp4/m4a 流，兼容性最好",
+                        "type": "string",
+                        "options": [
+                            "mp4",
+                            "any",
+                            "ios"
+                        ],
+                        "labels": [
+                            "mp4",
+                            "自动",
+                            "ios"
+                        ],
+                        "default": "mp4"
+                    },
+                    "wait_timeout": {
+                        "description": "管线总超时秒数",
+                        "hint": "整条下载管线（提交、解析等待、Metube 下载、取回）共用的截止时间，超时后整体取消。大视频/高分辨率建议调大",
+                        "type": "int",
+                        "slider": {
+                            "min": 60,
+                            "max": 3600,
+                            "step": 30
+                        },
+                        "default": 600
+                    },
+                    "delete_after_fetch": {
+                        "description": "取回后删除 Metube 记录",
+                        "hint": "视频拉取到本机后，删除 Metube 中的下载记录。若 Metube 配置了 DELETE_FILE_ON_TRASHCAN=true 会同时删除服务端文件",
+                        "type": "bool",
+                        "default": true
+                    }
+                }
             }
         }
     }

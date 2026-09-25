@@ -18,6 +18,7 @@ from .xiaoheihe import XiaoheiheParser
 from .youtube import YouTubeParser
 from .zhihu import ZhihuParser
 from .pixiv import PixivParser
+from .metube import MetubeParser
 
 __all__ = [
     "BaseParser",
@@ -40,4 +41,5 @@ __all__ = [
     "IwaraParser",
     "ShipinhaoParser",
     "PixivParser",
+    "MetubeParser",
 ]
