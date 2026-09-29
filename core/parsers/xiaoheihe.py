@@ -184,7 +184,9 @@ class XiaoheiheParser(BaseParser):
         show_body_text = bool(getattr(self.mycfg, "show_body_text", False))
 
         # 构建发送内容
-        mixed_layout = bool(getattr(self.mycfg, "mixed_layout", True))
+        # 注意：旧配置缺少这些字段时，ConfigNode 会返回 None 而非触发 getattr 默认值，
+        # 因此仅将显式的 False 视为关闭，None（未配置）按默认开启处理。
+        mixed_layout = getattr(self.mycfg, "mixed_layout", None) is not False
         contents: list[MediaContent] = []
 
         if mixed_layout:
@@ -927,25 +929,39 @@ class XiaoheiheParser(BaseParser):
 
             html_text = str(block.get("text") or "")
             if html_text:
-                push_text(self._html_block_to_text(html_text))
-                for image_url in self._extract_images_from_html_block(html_text):
-                    push_image(image_url)
+                for kind, value in self._parse_html_block_segments(html_text):
+                    if kind == "text":
+                        push_text(value)
+                    else:
+                        push_image(value)
 
         return segments
 
-    def _extract_images_from_html_block(self, html_block: str) -> list[str]:
-        urls: list[str] = []
-        seen_keys: set[str] = set()
-        for matched in re.finditer(
-            r"data-original=\"([^\"]+)\"|src=\"([^\"]+)\"", html_block, re.I
-        ):
-            candidate = matched.group(1) or matched.group(2) or ""
-            normalized = self._normalize_image_url(candidate)
-            dedup_key = self._image_dedup_key(normalized)
-            if normalized and dedup_key and dedup_key not in seen_keys:
-                seen_keys.add(dedup_key)
-                urls.append(normalized)
-        return urls
+    def _parse_html_block_segments(self, html_block: str) -> list[tuple[str, str]]:
+        """把 HTML 文本块按内联 <img> 的出现位置拆为有序的文/图段。
+
+        例如 "文字一<img/>文字二" 会拆为
+        [("text", "文字一"), ("image", ...), ("text", "文字二")]。
+        """
+        segments: list[tuple[str, str]] = []
+        for part in re.split(r"(<img\b[^>]*>)", html_block, flags=re.I):
+            if not part:
+                continue
+            if re.fullmatch(r"<img\b[^>]*>", part, flags=re.I):
+                matched = re.search(
+                    r"data-original=\"([^\"]+)\"|src=\"([^\"]+)\"", part, re.I
+                )
+                if matched:
+                    url = self._normalize_image_url(
+                        matched.group(1) or matched.group(2) or ""
+                    )
+                    if url:
+                        segments.append(("image", url))
+            else:
+                text = self._html_block_to_text(part)
+                if text:
+                    segments.append(("text", text))
+        return segments
 
     def _normalize_image_url(self, url: str) -> str:
         if not url:
@@ -957,9 +973,10 @@ class XiaoheiheParser(BaseParser):
             return ""
         # 接口给的 url 带七牛 imageMogr2 处理：重压缩并限制在 850x1450 内，大图会糊。
         # 开启原图模式时去掉查询串，获取平台留存的原始文件。
+        # 同上：None（旧配置未配置该字段）按默认开启处理，仅显式 False 视为关闭。
         if "imageMogr2" in url and getattr(
-            self.mycfg, "use_original_image", True
-        ):
+            self.mycfg, "use_original_image", None
+        ) is not False:
             url = url.split("?", 1)[0]
         return url
 
@@ -974,7 +991,7 @@ class XiaoheiheParser(BaseParser):
         fragment = html.unescape(html_block)
         fragment = re.sub(r"<br\s*/?>", "\n", fragment, flags=re.I)
         fragment = re.sub(r"</p>\s*<p[^>]*>", "\n", fragment, flags=re.I)
-        fragment = re.sub(r"<img[^>]*>", "", fragment, flags=re.I)
+        fragment = re.sub(r"<img\b[^>]*>", "", fragment, flags=re.I)
         fragment = re.sub(r"<[^>]+>", "", fragment)
         lines = [self._clean_text(line) for line in fragment.splitlines()]
         lines = [line for line in lines if line]
