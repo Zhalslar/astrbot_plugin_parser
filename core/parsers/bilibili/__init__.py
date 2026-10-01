@@ -10,7 +10,7 @@ from msgspec import convert
 from astrbot.api import logger
 
 from ...config import PluginConfig
-from ...data import ImageContent, MediaContent, Platform
+from ...data import ImageContent, MediaContent, Platform, SendGroup
 from ...exception import DownloadException, DurationLimitException
 from ..base import (
     BaseParser,
@@ -297,6 +297,13 @@ class BilibiliParser(BaseParser):
             timestamp=opus_data.timestamp,
             contents=contents,
             text=current_text.strip(),
+            # 图文动态全是轻媒体，默认发送计划不会渲染卡片，
+            # 显式要求先发一张"文字+图片"合一的媒体卡片
+            send_groups=(
+                [SendGroup(contents=contents, render_card=True, force_merge=False)]
+                if contents
+                else []
+            ),
         )
 
     async def parse_live(self, room_id: int):

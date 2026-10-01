@@ -134,7 +134,15 @@ class OpusItem(Struct):
 
     @property
     def title(self) -> str | None:
-        return self.item.basic.title if self.item.basic else None
+        """图文动态标题（过滤网页页标题样板「{作者}的动态 - 哔哩哔哩」）"""
+        title = self.item.basic.title if self.item.basic else None
+        if not title:
+            return None
+        try:
+            name, _ = self.name_avatar
+        except StopIteration:
+            return title
+        return None if title == f"{name}的动态 - 哔哩哔哩" else title
 
     @property
     def name_avatar(self) -> tuple[str, str]:
