@@ -78,12 +78,37 @@ class Stat(Struct):
     coin: dict[str, Any] | None = None
 
 
+class TopImage(Struct):
+    """置顶模块图片信息"""
+
+    url: str
+
+
+class TopAlbum(Struct):
+    """置顶模块相簿"""
+
+    pics: list[TopImage]
+
+
+class TopDisplay(Struct):
+    """置顶模块展示信息"""
+
+    album: TopAlbum | None = None
+
+
+class Top(Struct):
+    """置顶模块内容"""
+
+    display: TopDisplay | None = None
+
+
 class Module(Struct):
     """图文动态模块"""
 
     module_type: str
     module_author: Author | None = None
     module_content: Content | None = None
+    module_top: Top | None = None
     # module_stat: OpusStat | None = None
 
 
@@ -131,6 +156,7 @@ class OpusItem(Struct):
 
     def gen_text_img(self) -> Generator[TextNode | ImageNode, None, None]:
         """生成图文节点（保持顺序）"""
+        has_image = False
         for module in self.item.modules:
             if module.module_type == "MODULE_TYPE_CONTENT" and module.module_content:
                 for paragraph in module.module_content.paragraphs:
@@ -146,7 +172,22 @@ class OpusItem(Struct):
                     # 处理图片段落
                     if paragraph.pic and paragraph.pic.pics:
                         for pic in paragraph.pic.pics:
+                            has_image = True
                             yield ImageNode(url=pic.url)
+
+        # 图片动态的图片不在正文段落, 而存放在 MODULE_TYPE_TOP 的相簿中
+        if not has_image:
+            for module in self.item.modules:
+                album = (
+                    module.module_top.display.album
+                    if module.module_type == "MODULE_TYPE_TOP"
+                    and module.module_top
+                    and module.module_top.display
+                    else None
+                )
+                if album:
+                    for pic in album.pics:
+                        yield ImageNode(url=pic.url)
 
     def _extract_text_from_nodes(self, nodes: list[dict[str, Any]]) -> str:
         """从节点列表中提取文本内容"""
