@@ -23,8 +23,9 @@ class TikTokParser(BaseParser):
     @handle("tiktok.com", r"(www|vt|vm)\.tiktok\.com/[A-Za-z0-9._?%&+\-=/#@]*")
     async def _parse(self, searched: re.Match[str]):
         # 从匹配对象中获取原始URL
-        url = f"https://{searched.group(0)}"
-        prefix = searched.group(1)
+        url, prefix = searched.group(0), searched.group(1)
+        if not url.startswith(("http://", "https://")):
+            url = f"https://{url}"
 
         if prefix in ("vt", "vm"):
             url = await self.get_redirect_url(url)
