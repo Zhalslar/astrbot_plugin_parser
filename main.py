@@ -170,7 +170,9 @@ class ParserPlugin(Star):
                 elif isinstance(seg, Json):
                     reply_texts.append(extract_json_url(seg.data))
             if reply_texts:
-                text = "".join(reply_texts)
+                reply_text = "".join(t for t in reply_texts if t)
+                if reply_text:
+                    text = reply_text
 
         if not text:
             return
