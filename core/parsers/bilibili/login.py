@@ -92,7 +92,12 @@ class BilibiliLogin:
             return
 
         credential = Credential.from_cookies(self._cookies_to_dict(self.raw_cookies))
-        if await credential.check_valid():
+        try:
+            ck_valid = await credential.check_valid()
+        except Exception:
+            # 检查接口偶发异常(如 -101), 按未通过处理, 回退到凭证文件
+            ck_valid = False
+        if ck_valid:
             logger.info(f"`parser_bili_ck` 有效, 保存到 {self.credential_file}")
             self._credential = credential
             self._save_credential()
@@ -114,11 +119,23 @@ class BilibiliLogin:
                 logger.warning("哔哩哔哩凭证缺少 SESSDATA, 请重新登录")
                 return None
 
-        if not await self._credential.check_valid():
-            logger.warning("哔哩哔哩凭证已过期, 请重新配置")
-            return None
+        try:
+            cv_valid = await self._credential.check_valid()
+        except Exception:
+            # 检查接口偶发异常, 按未通过处理
+            cv_valid = False
+        if not cv_valid:
+            # bilibili-api 的 check_valid 对有效凭证也会间歇性返回 False
+            # (接口误报), 同一凭证往往仍可正常解析, 告警放行而非直接拦截
+            logger.warning("哔哩哔哩凭证 check_valid 未通过(可能为接口误报, 跳过拦截继续使用)")
 
-        if await self._credential.check_refresh():
+        try:
+            need_refresh = await self._credential.check_refresh()
+        except Exception:
+            # check_refresh 对失效/被风控凭证会抛 ResponseCodeException(-101),
+            # 异常时跳过刷新检查, 不中断解析
+            need_refresh = False
+        if need_refresh:
             logger.info("哔哩哔哩凭证需要刷新")
             if self._credential.has_ac_time_value() and self._credential.has_bili_jct():
                 await self._credential.refresh()
