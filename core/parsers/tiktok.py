@@ -24,13 +24,18 @@ class TikTokParser(BaseParser):
     async def _parse(self, searched: re.Match[str]):
         # 从匹配对象中获取原始URL
         url, prefix = searched.group(0), searched.group(1)
+        if not url.startswith(("http://", "https://")):
+            url = f"https://{url}"
 
         if prefix in ("vt", "vm"):
             url = await self.get_redirect_url(url)
 
         # 获取视频信息
         video_info = await self.downloader.ytdlp_extract_info(
-            url, headers=self.headers, proxy=self.proxy
+            url,
+            cookiefile=self.cookiejar.cookie_file,
+            headers=self.headers,
+            proxy=self.proxy,
         )
 
         # 下载封面和视频

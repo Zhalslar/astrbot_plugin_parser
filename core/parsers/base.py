@@ -178,6 +178,8 @@ class BaseParser:
         headers: dict[str, str] | None = None,
     ) -> str:
         """获取重定向后的 URL, 单次重定向"""
+        if not url.startswith(("http://", "https://")):
+            url = f"https://{url}"
         headers = headers or COMMON_HEADER.copy()
         retries = self.cfg.download_retry_times
         for attempt in range(retries + 1):
@@ -201,6 +203,8 @@ class BaseParser:
         headers: dict[str, str] | None = None,
     ) -> str:
         """获取重定向后的 URL, 允许多次重定向"""
+        if not url.startswith(("http://", "https://")):
+            url = f"https://{url}"
         headers = headers or COMMON_HEADER.copy()
         retries = 2
         for attempt in range(retries + 1):
