@@ -4,6 +4,7 @@ import random
 import re
 import time
 from typing import ClassVar
+from yarl import URL
 
 from aiohttp import ClientError
 from bs4 import BeautifulSoup, Tag
@@ -24,7 +25,7 @@ class NGAParser(BaseParser):
         self.mycfg = config.parser.nga
         self.headers.update(
             {
-                "Referer": "https://nga.178.com/",
+                "Referer": "https://bbs.nga.cn/",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                 "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
                 "Accept-Encoding": "gzip, deflate",
@@ -32,14 +33,14 @@ class NGAParser(BaseParser):
                 "Upgrade-Insecure-Requests": "1",
             }
         )
-        self.base_img_url = "https://img.nga.178.com/attachments"
-        self.cookiejar = CookieJar(config, self.mycfg, domain="nga.178.com")
+        self.base_img_url = "https://img.nga.cn/attachments"
+        self.cookiejar = CookieJar(config, self.mycfg, domain="bbs.nga.cn")
         if self.cookiejar.cookies_str:
             self.headers["cookie"] = self.cookiejar.cookies_str
 
     @staticmethod
     def nga_url(tid: str | int) -> str:
-        return f"https://nga.178.com/read.php?tid={tid}"
+        return f"https://bbs.nga.cn/read.php?tid={tid}"
 
     # ("ngabbs.com", r"https?://ngabbs\.com/read\.php\?tid=(?P<tid>\d+)(?:[&#A-Za-z\d=_-]+)?"),
     # ("nga.178.com", r"https?://nga\.178\.com/read\.php\?tid=(?P<tid>\d+)(?:[&#A-Za-z\d=_-]+)?"),
@@ -68,18 +69,20 @@ class NGAParser(BaseParser):
                     )
                     if cookie_match:
                         guest_js = cookie_match.group(1)
+                        # 保存 guestJs 及 session 维持的会话 cookie
+                        self.session.cookie_jar.update_cookies(
+                            {"guestJs": guest_js, "lastpath": "0"},
+                            response_url=URL(url),
+                        )
                         # 等待一小段时间（模拟JavaScript的setTimeout）
                         await asyncio.sleep(0.3)
 
                         # 添加随机参数避免缓存（模拟JavaScript的行为）
                         rand_param = random.randint(0, 999)
-                        separator = "&" if "?" in url else "?"
-                        retry_url = f"{url}{separator}rand={rand_param}"
-                        clean_headers = self.headers.copy()
-                        clean_headers["Cookie"] = f"guestJs={guest_js}"
+                        retry_url = str(URL(url).update_query({"rand": rand_param}))
                         async with self.session.get(
                             retry_url,
-                            headers=clean_headers,
+                            headers=self.headers,
                             allow_redirects=True,
                         ) as retry_resp:
                             html = await retry_resp.text()
@@ -147,8 +150,15 @@ class NGAParser(BaseParser):
             text = content_tag.get_text("\n", strip=True)
             # 清理 BBCode 标签并限制长度
             img_urls: list[str] = re.findall(r"\[img\](.*?)\[/img\]", text)
-            img_urls = [self.base_img_url + url[1:] for url in img_urls]
-            contents.extend(self.create_image_contents(img_urls))
+            normalized_urls = []
+            for u in img_urls:
+                if u.startswith("./"):
+                    normalized_urls.append(self.base_img_url + u[1:])
+                elif u.startswith("http://") or u.startswith("https://"):
+                    normalized_urls.append(u)
+                else:
+                    normalized_urls.append(f"{self.base_img_url}/{u.lstrip('/')}")
+            contents.extend(self.create_image_contents(normalized_urls, headers={"Referer": "https://bbs.nga.cn/"}))
             text = self.clean_nga_text(text)
 
         return self.result(
