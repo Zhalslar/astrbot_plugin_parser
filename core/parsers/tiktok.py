@@ -82,7 +82,10 @@ class TikTokParser(BaseParser):
         # 2. 普通视频解析逻辑
         try:
             video_info = await self.downloader.ytdlp_extract_info(
-                url, headers=self.headers, proxy=self.proxy
+                url,
+                cookiefile=self.cookiejar.cookie_file,
+                headers=self.headers,
+                proxy=self.proxy,
             )
 
             # 下载封面和视频
