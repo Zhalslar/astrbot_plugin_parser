@@ -8,6 +8,7 @@ from .iwara import IwaraParser
 from .kuaishou import KuaiShouParser
 from .ncm import NCMParser
 from .nga import NGAParser
+from .nhentai import NhentaiParser
 from .qzone import QZoneParser
 from .shipinhao import ShipinhaoParser
 from .tiktok import TikTokParser
@@ -30,6 +31,7 @@ __all__ = [
     "KuaiShouParser",
     "NCMParser",
     "NGAParser",
+    "NhentaiParser",
     "QZoneParser",
     "TikTokParser",
     "TwitterParser",

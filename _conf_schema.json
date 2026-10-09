@@ -691,6 +691,44 @@
                     }
                 }
             },
+            "nhentai": {
+                "name": "nhentai解析器",
+                "items": {
+                    "enable": {
+                        "description": "启用",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "use_proxy": {
+                        "description": "使用代理",
+                        "hint": "nhentai.net 在部分网络环境下需要代理才能访问",
+                        "type": "bool",
+                        "default": true
+                    },
+                    "nsfw": {
+                        "description": "封面处理方式",
+                        "hint": "正文一律合成为 PDF 发送，此选项只影响卡片中的封面图",
+                        "type": "string",
+                        "options": [
+                            "send",
+                            "blur",
+                            "ignore"
+                        ],
+                        "labels": [
+                            "正常发送",
+                            "封面模糊",
+                            "忽略"
+                        ],
+                        "default": "blur"
+                    },
+                    "max_page": {
+                        "description": "最大页数",
+                        "hint": "页数超过该值时跳过下载，仅发送信息卡片。0 则不限制",
+                        "type": "int",
+                        "default": 0
+                    }
+                }
+            },
             "allcpp": {
                 "name": "CPP无差别同人站解析器",
                 "items": {
