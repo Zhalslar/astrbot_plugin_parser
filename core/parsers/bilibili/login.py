@@ -234,9 +234,13 @@ class BilibiliLogin:
         if need_refresh:
             logger.info("哔哩哔哩凭证需要刷新")
             if self._credential.has_ac_time_value() and self._credential.has_bili_jct():
-                await self._credential.refresh()
-                logger.info(f"哔哩哔哩凭证刷新成功, 保存到 {self.credential_file}")
-                self._save_credential()
+                try:
+                    await self._credential.refresh()
+                except Exception as e:
+                    logger.warning(f"哔哩哔哩凭证刷新失败, 继续使用当前凭证: {e!r}")
+                else:
+                    logger.info(f"哔哩哔哩凭证刷新成功, 保存到 {self.credential_file}")
+                    self._save_credential()
             else:
                 logger.warning(
                     "哔哩哔哩凭证刷新需要包含 `SESSDATA`, `ac_time_value` 项"
