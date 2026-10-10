@@ -191,6 +191,7 @@ class ParserConfig(ConfigNodeContainer):
     metube: ParserItem
     ncm: ParserItem
     nga: ParserItem
+    nhentai: ParserItem
     tiktok: ParserItem
     twitter: ParserItem
     weibo: ParserItem
