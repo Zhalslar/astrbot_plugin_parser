@@ -1,4 +1,3 @@
-import asyncio
 from itertools import chain
 from pathlib import Path
 
@@ -35,6 +34,7 @@ from .exception import (
     ZeroSizeException,
 )
 from .render import Renderer
+from .utils import transcode_video_audio_to_lc
 
 
 class MessageSender:
@@ -68,65 +68,6 @@ class MessageSender:
     @staticmethod
     def _video_from_path(path: Path) -> Video:
         return Video.fromFileSystem(str(path))
-
-    @staticmethod
-    async def _transcode_video_for_qq(path: Path) -> Path:
-        """把 QQ 可能不渲染的音频（如 HE-AACv2）转成 AAC-LC，视频流直接复制。
-
-        部分平台（如抖音）视频常见 HE-AACv2 音频，QQ 客户端收下后会静默不显示；
-        先用 ffprobe 探测，已是 LC 就直接跳过，不做无谓转码。
-        """
-        try:
-            probe = await asyncio.create_subprocess_exec(
-                "ffprobe",
-                "-v", "error",
-                "-select_streams", "a:0",
-                "-show_entries", "stream=profile",
-                "-of", "default=nw=1:nk=1",
-                str(path),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL,
-            )
-            out, _ = await probe.communicate()
-            profile = (out or b"").decode(errors="ignore").strip()
-        except Exception as e:
-            logger.warning(f"[视频] ffprobe 探测失败，跳过转码: {e}")
-            return path
-
-        if not profile or profile.lower() in ("lc", "aac_lc", "aac lc"):
-            return path
-
-        out_path = path.with_name(f"{path.stem}_lc.mp4")
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "ffmpeg",
-                "-y", "-v", "error",
-                "-i", str(path),
-                "-c:v", "copy",
-                "-c:a", "aac",
-                "-profile:a", "aac_low",
-                "-movflags", "+faststart",
-                str(out_path),
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            _, err = await proc.communicate()
-        except Exception as e:
-            logger.warning(f"[视频] ffmpeg 调用异常，跳过转码: {e}")
-            return path
-
-        if proc.returncode != 0 or not out_path.exists():
-            logger.warning(
-                f"[视频] 音频转码失败(profile={profile})，改用原文件: "
-                f"{(err or b'')[:200]!r}"
-            )
-            return path
-
-        logger.info(
-            f"[视频] 音频 {profile} -> AAC-LC 完成: {out_path.name} "
-            f"({out_path.stat().st_size} bytes)"
-        )
-        return out_path
 
     @staticmethod
     def _record_from_path(path: Path) -> Record:
@@ -276,7 +217,7 @@ class MessageSender:
 
             match cont:
                 case VideoContent() | DynamicContent():
-                    path = await self._transcode_video_for_qq(path)
+                    path = await transcode_video_audio_to_lc(path)
                     segs.append(self._video_from_path(path))
                 case AudioContent():
                     segs.append(

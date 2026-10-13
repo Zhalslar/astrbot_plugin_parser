@@ -1,4 +1,5 @@
 import asyncio
+import asyncio
 import hashlib
 import json
 import re
@@ -180,6 +181,75 @@ async def encode_video_to_h264(video_path: Path) -> Path:
     logger.info(f"视频重新编码为 H.264 成功: {output_path}, {fmt_size(output_path)}")
     await safe_unlink(video_path)
     return output_path
+
+
+async def transcode_video_audio_to_lc(path: Path) -> Path:
+    """把视频中非 AAC-LC 的音频转码为标准 AAC-LC，保持视频流 copy。
+
+    用于解决 QQ 等平台因音频 profile（如 HE-AACv2）导致的视频无法正常渲染问题。
+    """
+    try:
+        probe = await asyncio.create_subprocess_exec(
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "a:0",
+            "-show_entries",
+            "stream=profile",
+            "-of",
+            "default=nw=1:nk=1",
+            str(path),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        out, _ = await probe.communicate()
+        profile = (out or b"").decode(errors="ignore").strip()
+    except Exception as e:
+        logger.warning(f"[视频] ffprobe 探测失败，跳过转码: {e}")
+        return path
+
+    if not profile or profile.lower() in ("lc", "aac_lc", "aac lc"):
+        return path
+
+    out_path = path.with_name(f"{path.stem}_lc.mp4")
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "ffmpeg",
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            str(path),
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+            "-profile:a",
+            "aac_low",
+            "-movflags",
+            "+faststart",
+            str(out_path),
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, err = await proc.communicate()
+    except Exception as e:
+        logger.warning(f"[视频] ffmpeg 调用异常，跳过转码: {e}")
+        return path
+
+    if proc.returncode != 0 or not out_path.exists():
+        logger.warning(
+            f"[视频] 音频转码失败(profile={profile})，改用原文件: "
+            f"{(err or b'')[:200]!r}"
+        )
+        return path
+
+    logger.info(
+        f"[视频] 音频 {profile} -> AAC-LC 完成: {out_path.name} "
+        f"({out_path.stat().st_size} bytes)"
+    )
+    return out_path
 
 
 def fmt_size(file_path: Path) -> str:
