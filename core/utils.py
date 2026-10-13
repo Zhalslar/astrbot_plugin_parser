@@ -1,5 +1,4 @@
 import asyncio
-import asyncio
 import hashlib
 import json
 import re
@@ -249,6 +248,7 @@ async def transcode_video_audio_to_lc(path: Path) -> Path:
         f"[视频] 音频 {profile} -> AAC-LC 完成: {out_path.name} "
         f"({out_path.stat().st_size} bytes)"
     )
+    await safe_unlink(path)
     return out_path
 
 
