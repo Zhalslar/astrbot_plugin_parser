@@ -147,7 +147,11 @@ class ParserPlugin(Star):
             and self_id not in mentioned_ids
         ):
             return
-        if mentioned_ids and self_id not in mentioned_ids:
+        if (
+            mentioned_ids
+            and self_id not in mentioned_ids
+            and "qq_official" not in mentioned_ids
+        ):
             return
 
         # 卡片解析：扫描整条消息链，兼容 @ + JSON 卡片等组合消息。
