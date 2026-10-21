@@ -267,8 +267,11 @@ class ParserPlugin(Star):
 
     @filter.llm_tool(name="parse_media_url")
     async def llm_parse_media_url(self, event: AstrMessageEvent, url: str) -> str:
-        """解析用户提供的视频、图集或音频链接并自动发送解析结果。
-        :param url: 待解析的视频/图文媒体链接
+        """
+        解析用户提供的视频、图集或音频链接并自动发送解析结果。
+
+        Args:
+            url(string): 待解析的视频或图文等媒体链接
         """
         try:
             await self.parse_and_send(event, url)
