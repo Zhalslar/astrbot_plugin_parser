@@ -252,3 +252,27 @@ class ParserPlugin(Star):
         yield event.chain_result([Image.fromBytes(qrcode)])
         async for msg in parser.login.check_qr_state():
             yield event.plain_result(msg)
+
+    async def parse_url(self, url: str):
+        """供其他插件调用的公开解析 API：传入 URL 解析并返回 ParseResult 对象"""
+        for kw, pat in self.key_pattern_list:
+            if kw in url and (m := pat.search(url)):
+                return await self.parser_map[kw].parse(kw, m)
+        raise ValueError(f"未匹配到支持的解析器: {url}")
+
+    async def parse_and_send(self, event: AstrMessageEvent, url: str) -> bool:
+        """供其他插件调用的公开方法：解析指定 URL 并直接发送至 event 对应会话"""
+        result = await self.parse_url(url)
+        return await self.sender.send_parse_result(event, result)
+
+    @filter.llm_tool(name="parse_media_url")
+    async def llm_parse_media_url(self, event: AstrMessageEvent, url: str) -> str:
+        """解析用户提供的视频、图集或音频链接并自动发送解析结果。
+        :param url: 待解析的视频/图文媒体链接
+        """
+        try:
+            await self.parse_and_send(event, url)
+            return "链接解析成功并已发送"
+        except Exception as e:
+            logger.error(f"[LLM Tool] 解析链接失败: {url}, error: {e}")
+            return f"解析链接失败: {e}"
