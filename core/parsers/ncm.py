@@ -70,8 +70,14 @@ class NCMParser(BaseParser):
 
         # 3. 组装结果
         author = self.create_author(author_name, author_avatar)
-        audio = self.create_video_content(
-            audio_url, cover_url, duration=duration_ms // 1000
+        audio = self.create_audio_content(
+            audio_url,
+            duration=duration_ms // 1000,
+            title=title,
+            artist=author_name,
+            album=album_name,
+            cover_url=cover_url,
+            name=f"{title}.mp3",
         )
 
         # 4. 返回

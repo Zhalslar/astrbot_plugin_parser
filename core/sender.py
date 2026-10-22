@@ -1,5 +1,13 @@
 from itertools import chain
 from pathlib import Path
+import re
+import shutil
+from io import BytesIO
+
+from mutagen import File as MutagenFile
+from mutagen.flac import FLAC, Picture
+from mutagen.id3 import APIC, ID3, TALB, TIT2, TPE1
+from PIL import Image as PILImage
 
 from astrbot.api import logger
 from astrbot.core.message.components import (
@@ -72,6 +80,50 @@ class MessageSender:
     @staticmethod
     def _record_from_path(path: Path) -> Record:
         return Record.fromFileSystem(str(path))
+
+    @staticmethod
+    def _safe_name(name: str, suffix: str) -> str:
+        name = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "_", name).strip(" .")
+        return (name or "audio") + suffix
+
+    async def _tag_audio(self, path: Path, cont: AudioContent, fallback_name: str) -> tuple[Path, str]:
+        suffix = path.suffix.lower() or ".mp3"
+        requested = cont.name or fallback_name
+        name = self._safe_name(requested, "" if requested.lower().endswith(suffix) else suffix)
+        if not any((cont.title, cont.artist, cont.album, cont.cover)):
+            return path, name
+        tagged = path.with_name(f"{path.stem}.tagged{suffix}")
+        try:
+            audio = MutagenFile(path)
+            cover = await cont.get_cover_path()
+            cover_bytes = cover.read_bytes() if cover and cover.is_file() else None
+            if cover_bytes:
+                with PILImage.open(BytesIO(cover_bytes)) as image:
+                    encoded = BytesIO()
+                    image.convert("RGB").save(encoded, format="JPEG", quality=95)
+                    cover_bytes = encoded.getvalue()
+            if isinstance(audio, FLAC):
+                audio["title"] = cont.title or fallback_name
+                if cont.artist: audio["artist"] = cont.artist
+                if cont.album: audio["album"] = cont.album
+                if cover_bytes:
+                    pic = Picture(); pic.type = 3; pic.mime = "image/jpeg"; pic.data = cover_bytes
+                    audio.clear_pictures(); audio.add_picture(pic)
+                audio.save(tagged)
+            elif suffix == ".mp3":
+                shutil.copy2(path, tagged)
+                tags = ID3(tagged)
+                if cont.title: tags.add(TIT2(encoding=3, text=cont.title))
+                if cont.artist: tags.add(TPE1(encoding=3, text=cont.artist))
+                if cont.album: tags.add(TALB(encoding=3, text=cont.album))
+                if cover_bytes: tags.add(APIC(encoding=3, mime="image/jpeg", type=3, desc="Cover", data=cover_bytes))
+                tags.save()
+            else:
+                return path, name
+            return tagged, name
+        except Exception as exc:
+            logger.warning(f"写入音频标签失败，使用原文件：{exc}")
+            return path, name
 
     @staticmethod
     def _iter_contents(result: ParseResult):
@@ -219,12 +271,12 @@ class MessageSender:
                 case VideoContent() | DynamicContent():
                     path = await transcode_video_audio_to_lc(path)
                     segs.append(self._video_from_path(path))
-                case AudioContent():
-                    segs.append(
-                        File(name=path.name, file=self._to_file_uri(path))
-                        if self.cfg.audio_to_file
-                        else self._record_from_path(path)
-                    )
+                case AudioContent() as audio:
+                    if self.cfg.audio_to_file:
+                        path, filename = await self._tag_audio(path, audio, result.title or "audio")
+                        segs.append(File(name=filename, file=self._to_file_uri(path)))
+                    else:
+                        segs.append(self._record_from_path(path))
                 case FileContent():
                     segs.append(File(name=path.name, file=self._to_file_uri(path)))
 

@@ -308,14 +308,22 @@ class BaseParser:
         url_or_task: str | Task[Path],
         duration: float = 0.0,
         headers: dict[str, str] | None = None,
+        *,
+        name: str | None = None,
+        title: str | None = None,
+        artist: str | None = None,
+        album: str | None = None,
+        cover_url: str | None = None,
     ):
         """创建音频内容"""
         if isinstance(url_or_task, str):
             url_or_task = self.downloader.download_audio(
                 url_or_task, headers=headers or self.headers, proxy=self.proxy
             )
-
-        return AudioContent(url_or_task, duration)
+        cover_task = self.downloader.download_img(
+            cover_url, headers=headers or self.headers, proxy=self.proxy
+        ) if cover_url else None
+        return AudioContent(url_or_task, duration, name, title, artist, album, cover_task)
 
     def create_graphics_content(
         self,

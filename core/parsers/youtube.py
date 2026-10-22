@@ -98,7 +98,14 @@ class YouTubeParser(BaseParser):
                 proxy=self.proxy,
             )
             contents.append(
-                self.create_audio_content(audio_task, duration=video_info.duration)
+                self.create_audio_content(
+                    audio_task,
+                    duration=video_info.duration,
+                    title=video_info.title,
+                    artist=video_info.channel,
+                    cover_url=video_info.thumbnail,
+                    name=f"{video_info.title}.flac",
+                )
             )
 
         return self.result(
