@@ -33,6 +33,19 @@ class AudioContent(MediaContent):
     """音频内容"""
 
     duration: float = 0.0
+    name: str | None = None
+    title: str | None = None
+    artist: str | None = None
+    album: str | None = None
+    cover: Path | Task[Path] | None = None
+
+    async def get_cover_path(self) -> Path | None:
+        if self.cover is None:
+            return None
+        if isinstance(self.cover, Path):
+            return self.cover
+        self.cover = await self.cover
+        return self.cover
 
 
 @dataclass(repr=False, slots=True)
@@ -129,7 +142,7 @@ class Platform:
     name: str
     """ 平台名称 """
     display_name: str
-    """ 平台显示名称 """
+    """ 平台名称 """
 
 
 @dataclass(repr=False, slots=True)
@@ -160,7 +173,7 @@ class Author:
         return repr + ")"
 
 
-@dataclass(repr=False, slots=True)
+@dataclass(slots=True)
 class SendGroup:
     """通用发送分组。sender 按分组顺序执行，但不理解平台语义。"""
 
@@ -257,7 +270,6 @@ class ParseResult:
         return None
 
     def formatted_datetime(self, fmt: str = "%Y-%m-%d %H:%M:%S") -> str | None:
-        """格式化时间戳"""
         return (
             datetime.fromtimestamp(self.timestamp).strftime(fmt)
             if self.timestamp is not None
